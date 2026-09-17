@@ -1,0 +1,13 @@
+# 产物（每次绘本生成的样本/草稿，不入仓库）
+outputs/
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# 编辑器
+.vscode/
+.idea/
