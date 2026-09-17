@@ -118,6 +118,6 @@
 
 ## 历史上下文（已沉淀到 picturebook-creator SKILL.md）
 
-P6-P15 + P16-P21 内容已写入 `references/fruit-series-batch-pattern.md` 和 `references/scene-place-series-batch-pattern.md`。
+P6-P15 + P16-P21 内容已写入 `references/fruit-series-batch-pattern.md` 和 `references/standalone-skills/scene-place-series-batch-pattern/SKILL.md`。
 - P22-P27 是 P22-P27（2026-07-17 第一次沉淀，进入 SKILL.md 主文件候选）
 - P28-P30 是本次会话追加沉淀

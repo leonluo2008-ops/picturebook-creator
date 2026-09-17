@@ -156,8 +156,8 @@ L4 全局 ⚠️ 段只放 4 铁律还不够，**每页生图提示词的主图�
 - 主 SKILL.md L4 段 "⚠️ 反混淆铁律" 应提到本文件作为下钻参考
 - 跨学科反混淆（花卉/水果/动物/鸟类）参考对应系列 skill：
   - 花卉：`references/flower-series-batch-pattern.md`（已建立）
-  - 鸟类/动物：参考 `references/scene-place-series-batch-pattern.md` 或对应动物类文件
-  - 场景/地点：参考 `references/scene-place-series-batch-pattern.md`
+  - 鸟类/动物：参考 `references/standalone-skills/scene-place-series-batch-pattern/SKILL.md` 或对应动物类文件
+  - 场景/地点：参考 `references/standalone-skills/scene-place-series-batch-pattern/SKILL.md`
 
 ## 10 本实测完整记录
 
