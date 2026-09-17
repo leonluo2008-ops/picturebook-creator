@@ -346,7 +346,7 @@ v2 在 5 本基础上，本会话又跑 7 本，**新增 3 条 P 级规则** + *
 
 ## 历史上下文（已沉淀到 picturebook-creator SKILL.md）
 
-P6-P15 + P16-P21 内容已写入 `references/fruit-series-batch-pattern.md` 和 `references/scene-place-series-batch-pattern.md`。P22-P27 是新规则，需写入主 SKILL.md（高优先级）或 references/ 支撑文件（中低优先级）。
+P6-P15 + P16-P21 内容已写入 `references/fruit-series-batch-pattern.md` 和 `references/standalone-skills/scene-place-series-batch-pattern/SKILL.md`。P22-P27 是新规则，需写入主 SKILL.md（高优先级）或 references/ 支撑文件（中低优先级）。
 
 ---
 
@@ -561,7 +561,7 @@ P6-P15 + P16-P21 内容已写入 `references/fruit-series-batch-pattern.md` 和 
 
 **沉淀位置**：
 - SKILL.md L3「⚠️ 旁白格式优化路径 5 档」段新增第 6 档："X，更多的 X" 数量/比较级模板
-- `references/quantity-comparative-batch-pattern.md` 新建（参照 flower/furniture/scene 系列），覆盖 more/fewer/bigger/smaller/taller/shorter 6 个高频比较级
+- quantity-comparative 比较级系列（原计划新建 `references/quantity-comparative-batch-pattern.md`，**未落地无此文件**——如需做该系列时新建并回填本条）
 
 ### P58 · L4 输出交付格式：默认输出到对话框（2026-07-21 NEW · 🟡 P1 中优先级）
 
