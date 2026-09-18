@@ -91,12 +91,25 @@ def check_book(rows, target_word=None):
         from collections import Counter
         cnt = Counter(b for _, b in binds)
         MODAL = {"can", "will", "want", "love", "like"}
+        last_row = binds[-1][0]
+        from collections import Counter as _C
+        blk_cnt = _C(b for _, b in binds)
         for seq, b in binds:
             words = b.split()
             if len(words) >= 2 and words[0] in MODAL:
-                issues.append(f"row{seq}: 绑定块 '{b}' 是情态拼装（can/want/love+动词），不是常用整块（绑定形态唯一性）")
-        if len(cnt) > 2:
-            warns.append(f"中文列绑定英文块有 {len(cnt)} 种不同形态（{dict(cnt)}）——变体过多难度大，应全书统一一个常用整块（人工确认）")
+                if blk_cnt[b] >= 2:
+                    issues.append(f"row{seq}: 绑定块 '{b}' 是情态拼装且重复出现（can/want/love+动词），不是常用整块（绑定形态唯一性）")
+                elif seq != last_row:
+                    warns.append(f"row{seq}: 绑定块 '{b}' 情态拼装出现在非末句——若作教学绑定应改常用整块")
+                # 单次+末句 = 互动收尾（落幕型③），合法
+        # 变体计数排除功能前缀: 疑问词/情态问句/冠词/否定（教学点本身或反转落幕机制，非教学变体）
+        FUNC_PREFIX = {"who", "where", "what", "how", "when", "why", "is", "are", "do", "does",
+                       "can", "will", "a", "an", "the", "no", "not", "so"}
+        content_forms = {b for b in cnt if b.split()[0] not in FUNC_PREFIX}
+        main_binding = cnt.most_common(1)[0][0]
+        extra = sorted(x for x in content_forms if x != main_binding)
+        if len(extra) >= 2:
+            warns.append(f"中文列绑定英文块有 {len(extra)} 种内容变体（{extra}）——变体过多难度大，应全书统一一个常用整块（人工确认）")
 
     # 中英主语对齐粗检：英文有动物主语而中文无对应（宽松提示）
     CN_ANIMAL = ("狗","猫","鸟","马","象","鱼","兔","鸭","鹅","猪","牛","羊","鹿","鲸","河马","长颈鹿","宝宝","宝贝")
