@@ -77,8 +77,6 @@ def check_book(rows, target_word=None):
             warns.append(f"目标词 {target_word} 全书出现 {hits} 次 < {MIN_TARGET_HITS}（教学曝光不足）")
 
     # 中文核心词同现率（2026-09-18 peekaboo册实测）：查中文翻译覆盖率（盲听强化）
-    CN_MAP = {'jump': '跳', 'run': '跑', 'big': '大', 'apple': '苹果', 'rain': '雨',
-              'moo': '哞', 'peekaboo': '躲猫猫', 'mummy': '妈妈', 'think': '想'}
     tw2 = (target_word or '').lower().strip()
     cn_core = CN_MAP.get(tw2)
     if cn_core:
@@ -160,33 +158,52 @@ def check_book(rows, target_word=None):
 
 
 
-def cn_skeleton(cn, target_cn=""):
-    """提取中文句式骨架: 剥目标词中文翻译+英文→X, 标点归一, 留句式框架。
-    「水呀水，water!」剥「水」→「X呀X 」;「时间呀时间」剥「时间」→「X呀X 」→ 同骨架=模板化。"""
-    import re
-    t = cn
-    if target_cn:
-        for frag in sorted(set(re.findall(r"[\u4e00-\u9fff]+", target_cn)), key=len, reverse=True):
-            if len(frag) >= 2:
-                t = t.replace(frag, "□")            # 多字翻译整体归一
-        if len(target_cn) == 1:
-            t = t.replace(target_cn, "□")           # 单字翻译(水/路)
-    t = re.sub(r"[a-zA-Z0-9'’]+", "X", t)           # 英文归一
-    t = re.sub(r"[，,。！!？?…～—\-]", " ", t)        # 标点归一
-    t = re.sub(r"\s+", " ", t).strip()
-    return t
+_SKELETON_KEEP = set("呀吗呢吧啊哦哟的了吗是谁哪这那我你他她它和跟不用上下去里外有在")
 
+
+def cn_skeleton(cn, target_cn=""):
+    """提取中文句式骨架(不依赖词表): 实词汉字→□, 功能字/代词/疑问字保留, 拟声叠字保留原字, 英文→X。
+    「白天呀白天，day!」→「□呀□X」;「时间呀时间，time!」→「□呀□X」→ 同骨架=模板化(批量查重必报)。
+    「滴答，滴答，time!」→「滴答滴答X」(拟声ABAB保留) vs「看，白天来啦，day!」→「看□□X」→ 不同构, 不误伤。
+    「这条路通向哪儿，way?」→「□□□□□哪X」;「我背后是谁呀，back?」→「我□□是□呀X」→ 互不同构。"""
+    t = re.sub(r"[a-zA-Z0-9'’]+", "X", cn)              # 英文归一
+    t = re.sub(r"[，,。！!？?…～—、\-]", "", t)           # 标点删除
+    prot = {}                                            # 叠字保护: ABAB与AA占位
+    def _protect(mt):
+        key = f"\x01{len(prot)}\x01"
+        prot[key] = mt.group(0)
+        return key
+    t = re.sub(r'([\u4e00-\u9fff]{2})\1', _protect, t)    # ABAB(滴答滴答)
+    t = re.sub(r'([\u4e00-\u9fff])\1', _protect, t)      # AA(叮叮)
+    chars = []
+    for ch in t:
+        if '\u4e00' <= ch <= '\u9fff':
+            chars.append(ch if ch in _SKELETON_KEEP else '□')
+        else:
+            chars.append(ch)
+    t = ''.join(chars)
+    t = re.sub(r'□+', '□', t)                            # 连续实词归一
+    for key, orig in prot.items():                       # 还原叠字原字
+        t = t.replace(key, orig)
+    return t.strip()
+
+
+
+
+
+CN_MAP = {'jump': '跳', 'run': '跑', 'big': '大', 'apple': '苹果', 'rain': '雨',
+              'moo': '哞', 'peekaboo': '躲猫猫', 'mummy': '妈妈', 'think': '想'}
 
 def batch_check(books_first_rows, word_cn=None):
-    """批量开场句查重: books_first_rows = {word: (en_row1, cn_row1)}
-    word_cn = {word: 中文翻译} 用于骨架归一。同批内骨架重复 ≥2 册 → 问题清单。"""
-    word_cn = word_cn or {}
-    """批量开场句查重: books_first_rows = {word: (en_row1, cn_row1)}
-    同批内骨架重复 ≥2 册 → 返回问题清单（模板化=必须修复, 锚文件2026-09-18用户定版）。"""
+    """批量开场句查重(2026-09-18用户定版): books_first_rows = {word: (en_row1, cn_row1)}
+    骨架归一默认接模块级 CN_MAP(中文同现率检查同源), word_cn 显式传入优先覆盖。
+    同批内骨架重复 ≥2 册 → 问题清单（模板化=必须修复, 锚·批量开场句查重）。"""
+    merged = dict(CN_MAP)
+    merged.update(word_cn or {})
     seen = {}
     problems = []
     for word, (en, cn) in books_first_rows.items():
-        sk = cn_skeleton(cn, target_cn=word_cn.get(word, ""))
+        sk = cn_skeleton(cn, target_cn=merged.get(word, ""))
         seen.setdefault(sk, []).append((word, cn))
     for sk, hits in seen.items():
         if len(hits) >= 2:
