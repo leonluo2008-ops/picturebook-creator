@@ -44,4 +44,4 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 
 > **v5.5.0 增量（09-14 中文旁白儿童化实测）** → `references/l3-narration-childlike-vividness-v5.5.0.md`（8 条新铁律 + 精简边界修订）
 > **v5.4.0 增量（07-24 11 本实测新增）** → `references/l3-l4-default-iron-laws.md`（铁律11-14 正文 + L4 重读清单，含铁律15 v5.5.1 模型全局控制 + **铁律16 L2 末页语义职责（2026-09-18 get 实测，L2 收束页三问闸门）**）
-> **末句备选制（09-18 get/do/make 实测新增）** → `references/ending-diversity-pattern.md`（L3 末句同简介出 3-4 个形态互异备选 + `ending-form-ledger.md` 轮换账本；「我X啦」降级为备选之一）
+> **末句备选制（09-18 get/do/make 实测新增）** → `references/ending-diversity-pattern.md`（L3 末句同简介出 3-4 个形态互异备选；「我X啦」降级为备选之一）
