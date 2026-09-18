@@ -22,10 +22,8 @@
 - 收益：主文件信噪比提升，LLM 首屏即见全貌；重复内容单一事实源化
 - 风险：极低（内容全部在 references 自持，置顶块本就是指针+摘要）
 
-### D2. update-todo 积压规则（P28-P66）的处置
-现状：update-todo 积压 39 条规则，其中多数标注「沉淀位置=主 SKILL.md 顶部」，但同类内容实际已落在卫星 skill（ld-picturebook-l4-user-ironrule 承接 L4 文字铁律 P53/54/60/63；confirmation-protocol 承接流程陷阱 P31/51/55/59/61/62/64/65）。
-- **建议方案（强推荐）**：不向主 SKILL.md 顶部搬运（违背瘦身方向）——卫星 skill 已自持且被 narration-review 等链路引用；改为在主 SKILL.md 增设一节「卫星 skill 分工索引」（5-8 行），声明 L4 文字铁律以 ld-picturebook-l4-user-ironrule 为唯一权威、流程陷阱以 confirmation-protocol 为唯一权威；update-todo 清单相应标记「已由卫星 skill 承接，免搬运」。
-- 备选方案：按原计划逐条 patch 进主 SKILL.md（会使主文件膨胀 200+ 行，与本次瘦身方向相逆）。
+### D2. update-todo 积压规则（P28-P66）的处置 —— ✅ 已解决（2026-09-18 用户判定过期）
+用户确认 update-todo 已过期（最后更新 07-21，后被 18 个提交演进取代：P61→末句备选制定版、v11 积压 7 条卫星已承接）。已整体归档 `docs/archive/picturebook-creator-update-todo/`（commit dc4cda6），全仓引用修复。「向主 SKILL.md 搬运积压」方案作废。
 
 ### D3. 过检样例库（启发优先的另一半）
 现状：现有范例散落在 22 个批次模式文件（fruit/animal/career...各含大量 ❌ 禁令对照）。按「少而精」原则，建议新建 `references/exemplars.md`——每类目精选 1 本「定稿旁白全文」（只放好样本，不放禁令），作为 L3 创作时的小样本激发源；批次文件降级为「反混淆字典+素材库」查询用。
