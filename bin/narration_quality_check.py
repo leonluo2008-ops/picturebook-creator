@@ -76,6 +76,36 @@ def check_book(rows, target_word=None):
         if hits < MIN_TARGET_HITS:
             warns.append(f"目标词 {target_word} 全书出现 {hits} 次 < {MIN_TARGET_HITS}（教学曝光不足）")
 
+    # 绑定形态唯一性（2026-09-18 4样本实测）：中文列末尾绑定的英文块应一致，禁情态拼装块
+    binds = []
+    for seq, en, cn in rows:
+        m = re.search(r"[，,]\s*([A-Za-z][A-Za-z' ]*[a-zA-Z'])\s*[!.?！？]*\s*$", cn)
+        if not m:
+            m2 = re.search(r"^([A-Za-z][A-Za-z' ]*[a-zA-Z'])\s*[!.！。]\s*$", cn)
+            m = m2
+        if m:
+            blk = m.group(1).strip().lower()
+            if blk:
+                binds.append((seq, blk))
+    if len(binds) >= 4:
+        from collections import Counter
+        cnt = Counter(b for _, b in binds)
+        MODAL = {"can", "will", "want", "love", "like"}
+        for seq, b in binds:
+            words = b.split()
+            if len(words) >= 2 and words[0] in MODAL:
+                issues.append(f"row{seq}: 绑定块 '{b}' 是情态拼装（can/want/love+动词），不是常用整块（绑定形态唯一性）")
+        if len(cnt) > 2:
+            warns.append(f"中文列绑定英文块有 {len(cnt)} 种不同形态（{dict(cnt)}）——变体过多难度大，应全书统一一个常用整块（人工确认）")
+
+    # 中英主语对齐粗检：英文有动物主语而中文无对应（宽松提示）
+    CN_ANIMAL = ("狗","猫","鸟","马","象","鱼","兔","鸭","鹅","猪","牛","羊","鹿","鲸","河马","长颈鹿","宝宝","宝贝")
+    EN_ANIMAL = ("dog","cat","bird","horse","elephant","hippo","giraffe","whale","rabbit","duck","goose","pig","cow","sheep","deer","baby")
+    for seq, en, cn in rows:
+        en_main = [w for w in EN_ANIMAL if re.search("(^|[^A-Za-z])" + w + "([^A-Za-z]|$)", en, re.I)]
+        if en_main and not any(a in cn for a in CN_ANIMAL):
+            warns.append(f"row{seq}: 英文主语 '{en_main[0]}' 在中文列未见对应——中英对齐?")
+
     # 全书叠词定语计数（粗扫「XX的」且 XX 为 AA 叠字）+ 骨架型豁免判定（§八B v5.6.0）
     redup = 0
     tokens = []
