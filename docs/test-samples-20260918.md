@@ -3,7 +3,7 @@
 > 用途：narration_quality_check.py 回归输入 + 公式泛化性人工验收。
 > 每册验证：五站链（功能检查表）、三许可（内容词≤10）、每句双语同现、目标词≥8、问后必有真答案、形状不跨书复用。
 
-## 样本1：run（动作动词 · 动作空间链：起→展×2→蓄→问→答→收→落）——v2 修订：绑定形态统一 run
+## 样本1：run（动作动词 · 动作空间链：起→展×2→蓄→问→答→收→落）——v3：row8 收束改落幕句（用户反馈：缺结束感）
 
 | 1 | RUN! | 跑呀跑，RUN! |
 | 2 | The dog can run! | 小狗跑，run! |
@@ -12,7 +12,7 @@
 | 5 | Where to run? | 往哪儿跑呢，where to run? |
 | 6 | Run after the butterfly! | 追着蝴蝶跑，run! |
 | 7 | Run home, little dog! | 小狗跑回家，run home! |
-| 8 | The dog loves to run! | 小狗爱跑步，loves to run! |
+| 8 | No more running! | 跑够啦，no more running! |
 ## 样本2：big（形容词 · 量级递进链：起→展×2→问→答→升→极→落）——v2 修订：变体收敛为 big
 
 | 1 | BIG! | 好大好大，BIG! |
