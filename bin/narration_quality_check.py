@@ -76,6 +76,15 @@ def check_book(rows, target_word=None):
         if hits < MIN_TARGET_HITS:
             warns.append(f"目标词 {target_word} 全书出现 {hits} 次 < {MIN_TARGET_HITS}（教学曝光不足）")
 
+    # 中文核心词同现率（2026-09-18 peekaboo册实测）：查中文翻译覆盖率（盲听强化）
+    CN_MAP = {'jump': '跳', 'run': '跑', 'big': '大', 'apple': '苹果', 'rain': '雨',
+              'moo': '哞', 'peekaboo': '躲猫猫', 'mummy': '妈妈', 'think': '想'}
+    tw2 = (target_word or '').lower().strip()
+    cn_core = CN_MAP.get(tw2)
+    if cn_core:
+        hit = sum(1 for _, _, cn in rows if cn_core in cn)
+        if hit < len(rows):
+            warns.append(f"中文核心词翻译 '{cn_core}' 仅 {hit}/{len(rows)} 句出现——盲听强化断裂（中文核心词同现率），缺译句人工补译")
     # 绑定形态唯一性（2026-09-18 4样本实测）：中文列末尾绑定的英文块应一致，禁情态拼装块
     binds = []
     for seq, en, cn in rows:

@@ -42,16 +42,16 @@
 
 row7 是「雨去哪儿了」的真答案（彩虹是雨变的）；落幕型：②归位（告别）
 
-## 样本8：peekaboo（游戏互动词 · 藏找游戏链：起→藏→找→找到×2→落·拥抱归位）
+## 样本8：peekaboo（游戏互动词 · 藏找游戏链：起→藏→找→找到×2→落·拥抱归位）——v2：中文核心词翻译补齐（用户反馈：盲听强化断裂）
 
 | 1 | PEEKABOO! | 躲猫猫，PEEKABOO! |
 | 2 | Peekaboo, baby! | 宝宝玩躲猫猫，peekaboo! |
-| 3 | Where is baby? Peekaboo! | 宝宝在哪儿，peekaboo! |
-| 4 | Peekaboo! I see you! | 看到你啦，peekaboo! |
-| 5 | Peekaboo, teddy! | 泰迪熊也玩，peekaboo! |
-| 6 | Where is teddy? Peekaboo! | 泰迪在哪儿，peekaboo! |
-| 7 | Found you! Peekaboo! | 找到你啦，peekaboo! |
-| 8 | Peekaboo! I love you! | 最爱你呀，peekaboo! |
+| 3 | Where is baby? Peekaboo! | 宝宝躲猫猫，在哪儿，peekaboo! |
+| 4 | Peekaboo! I see you! | 躲猫猫，看到你啦，peekaboo! |
+| 5 | Peekaboo, teddy! | 泰迪熊也玩躲猫猫，peekaboo! |
+| 6 | Where is teddy? Peekaboo! | 泰迪躲猫猫，在哪儿，peekaboo! |
+| 7 | Found you! Peekaboo! | 躲猫猫，找到你啦，peekaboo! |
+| 8 | Peekaboo! I love you! | 躲猫猫，最爱你呀，peekaboo! |
 
 落幕型：②归位（游戏收在拥抱）
 
