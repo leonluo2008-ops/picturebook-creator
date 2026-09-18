@@ -94,7 +94,7 @@ def check_book(rows, target_word=None):
     has_turn = False
     for _, en, cn in rows:
         cn_norm = cn.replace('?', '？').replace('!', '！').replace(',', '，')
-        if ('？' in cn_norm or '！' in cn_norm) and any(k in cn_norm for k in ('不', '吗', '什么', '哪里', '呀')):
+        if ('？' in cn_norm or '！' in cn_norm) and any(k in cn_norm for k in ('不', '吗', '什么', '哪里', '哪儿', '为什么', '谁', '怎么', '告诉', '呀')):
             has_turn = True
             break
         # 「不，不，不是」式重复否定反转（无问叹号也成立，小羊上山范式）
