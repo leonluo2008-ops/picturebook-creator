@@ -159,6 +159,46 @@ def check_book(rows, target_word=None):
     return issues, warns
 
 
+
+def cn_skeleton(cn, target_cn=""):
+    """提取中文句式骨架: 剥目标词中文翻译+英文→X, 标点归一, 留句式框架。
+    「水呀水，water!」剥「水」→「X呀X 」;「时间呀时间」剥「时间」→「X呀X 」→ 同骨架=模板化。"""
+    import re
+    t = cn
+    if target_cn:
+        for frag in sorted(set(re.findall(r"[\u4e00-\u9fff]+", target_cn)), key=len, reverse=True):
+            if len(frag) >= 2:
+                t = t.replace(frag, "□")            # 多字翻译整体归一
+        if len(target_cn) == 1:
+            t = t.replace(target_cn, "□")           # 单字翻译(水/路)
+    t = re.sub(r"[a-zA-Z0-9'’]+", "X", t)           # 英文归一
+    t = re.sub(r"[，,。！!？?…～—\-]", " ", t)        # 标点归一
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def batch_check(books_first_rows, word_cn=None):
+    """批量开场句查重: books_first_rows = {word: (en_row1, cn_row1)}
+    word_cn = {word: 中文翻译} 用于骨架归一。同批内骨架重复 ≥2 册 → 问题清单。"""
+    word_cn = word_cn or {}
+    """批量开场句查重: books_first_rows = {word: (en_row1, cn_row1)}
+    同批内骨架重复 ≥2 册 → 返回问题清单（模板化=必须修复, 锚文件2026-09-18用户定版）。"""
+    seen = {}
+    problems = []
+    for word, (en, cn) in books_first_rows.items():
+        sk = cn_skeleton(cn, target_cn=word_cn.get(word, ""))
+        seen.setdefault(sk, []).append((word, cn))
+    for sk, hits in seen.items():
+        if len(hits) >= 2:
+            words = "、".join(w for w, _ in hits)
+            examples = "／".join(cn for _, cn in hits[:3])
+            problems.append(
+                f"开场句式模板化: {words} 共{len(hits)}册同骨架「{sk}」（如 {examples}）"
+                f"——批量开场查重违规（锚·批量开场句查重），每册换开场型（感叹提名/场景引入/悬念提问/声音开场/对话召唤/动作进行）"
+            )
+    return problems
+
+
 def main():
     args = sys.argv[1:]
     if args and args[0] == '--demo':
