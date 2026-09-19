@@ -194,9 +194,22 @@ def cn_skeleton(cn, target_cn=""):
 CN_MAP = {'jump': '跳', 'run': '跑', 'big': '大', 'apple': '苹果', 'rain': '雨',
               'moo': '哞', 'peekaboo': '躲猫猫', 'mummy': '妈妈', 'think': '想'}
 
+def title_check(books_titles):
+    """标题备选核心词闸门(2026-09-19用户定版): books_titles = {word: [备选1, 备选2, ...]}
+    每条备选必须显示英文核心词(忽略大小写字面匹配)。违规清单返回, 空列表=全过。
+    背景: 旧「拟声式允许隐去核心词」豁免已作废——《滴答滴答 · Tick Tock》类被用户审核拦下。"""
+    problems = []
+    for word, titles in books_titles.items():
+        w = word.strip().lower()
+        for i, t in enumerate(titles, 1):
+            if t and w not in t.lower():
+                problems.append(f"{word} 备选{i}《{t}》未显示核心词 → 重写该条(避撞名=换中文侧结构, 不隐去英文词)")
+    return problems
+
+
 def batch_check(books_first_rows, word_cn=None):
     """批量开场句查重(2026-09-18用户定版): books_first_rows = {word: (en_row1, cn_row1)}
-    骨架归一默认接模块级 CN_MAP(中文同现率检查同源), word_cn 显式传入优先覆盖。
+     骨架归一默认接模块级 CN_MAP(中文同现率检查同源), word_cn 显式传入优先覆盖。
     同批内骨架重复 ≥2 册 → 问题清单（模板化=必须修复, 锚·批量开场句查重）。"""
     merged = dict(CN_MAP)
     merged.update(word_cn or {})
