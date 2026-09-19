@@ -66,6 +66,7 @@ RICH_NEW = ['月', '词型', '绑定形态', '链形', '画风',
 STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '待审核', 'color': 'purple'}, {'name': '已排产', 'color': 'blue'},
                {'name': '已领取（生产中）', 'color': 'yellow'}, {'name': '已交付', 'color': 'green'},
                {'name': '弃用', 'color': 'red'}]
+VALID_STATES = tuple(o['name'] for o in STATUS_OPTS)   # 状态白名单单源(审查NIT)
 
 def ensure_schema():
     ds = api('GET', f'data_sources/{DS_ID}', ver='2026-03-11')
@@ -198,13 +199,25 @@ def page_children(b):
 def replace_body(page_id, children):
     old = api('GET', f'blocks/{page_id}/children', ver='2026-03-11')
     if 'error' in old: sys.exit(f'读children失败: {old}')
-    # 守卫: 已含交付物/需保留块的页面拒绝无意识重建 (--force 显式放行)
-    protect = ('生图提示词（定稿）',)
+    # 守卫: 已含交付物标题块(heading_2 且文本精确=「生图提示词（定稿）」)的页面拒绝无意识重建
+    # (不能用子串匹配: 每页 GUIDE 使用规则里引用了这七个字, 会误伤所有页面)
     for b in old['results']:
         t = b.get('type', '')
         txt = ''.join(x['plain_text'] for x in b.get(t, {}).get('rich_text', []))
-        if any(k in txt for k in protect) and '--force' not in sys.argv:
-            sys.exit(f'页面含「{protect[0]}」(已交付正文)。push 会销毁它; 确认重建加 --force')
+        if t == 'heading_2' and txt.strip() == '生图提示词（定稿）' and '--force' not in sys.argv:
+            sys.exit(f'页面含「生图提示词（定稿）」交付物标题块。push 会销毁它; 确认重建加 --force')
+    # 先保住用户写在页尾的✍️修改意见(重推不销毁, 审查SHOULD修复), 拼到新块末尾
+    old_yijian = []
+    for b in old['results']:
+        t = b.get('type', '')
+        txt = ''.join(x['plain_text'] for x in b.get(t, {}).get('rich_text', []))
+        if t == 'callout' and '修改意见' in txt and '本页使用规则' not in txt:
+            old_yijian.append(txt)
+    if old_yijian and not any('修改意见' in json.dumps(c, ensure_ascii=False) for c in children):
+        children = children + [{'object': 'block', 'type': 'callout', 'callout': {
+            'rich_text': [{'text': {'content': '\n\n'.join(old_yijian)}}],
+            'icon': {'type': 'emoji', 'emoji': '✍️'}}}]
+        print(f'  (保留旧✍️修改意见{len(old_yijian)}条)')
     # 先 append 新块, 成功后才归档旧块 (append 失败页面不空)
     r = api('PATCH', f'blocks/{page_id}/children', {'children': children})
     if 'error' in r: sys.exit(f'append失败(旧块未动, 页面无损): {r}')
@@ -219,7 +232,7 @@ def book_props(b, csvrow):
          '月': rt(csvrow.get('月', '')), '词型': rt(csvrow.get('词型分类', '')),
          '绑定形态': rt(csvrow.get('绑定形态', '')),
          '状态': {'select': {'name': csvrow.get('状态', '待产')
-                             if csvrow.get('状态', '待产') in ('待产', '待审核', '已排产', '已领取（生产中）', '已交付', '弃用')
+                             if csvrow.get('状态', '待产') in VALID_STATES
                              else '待产'}}}
     for i, t in enumerate(b['titles'][:3]):
         p[f'标题备选{"①②③"[i]}'] = rt(t)
@@ -239,30 +252,39 @@ def cmd_push(md_path, csv_path=None):
     for b in books:
         row = csvrows.get(b['id'], {})
         if not row:
-            print(f"⚠️ {b['id']} 不在 {csv_file.name}: 月/词型/画风等列留空, 状态落待产")
+            print(f"⚠️ {b['id']} 不在 {csv_file.name}: 月/词型/画风等列留空")
+        old = pages.get(b['id'])
+        # ── 行级数据筛查(数据权限模型, 见SOP§数据权限): 已交付/弃用行 Agent 不可触 ──
+        old_st = plain(old['properties'].get('状态')) if old else None
+        if old_st == '已交付' and '--force' not in sys.argv:
+            print(f"{b['id']} 跳过(已交付, 交付物最高保护; 确认重建加 --force)")
+            continue
+        if old_st == '弃用':
+            print(f"{b['id']} 跳过(弃用行, Agent 无权复活)")
+            continue
         props = book_props(b, row)
-        if b['id'] in pages:
-            pid = pages[b['id']]['id']
-            keep = pages[b['id']]['properties']
-            # 预处理工段置位: push=素材已预处理 → 待产行翻「待审核」(已有其它状态的不动)
-            if plain(keep.get('状态')) == '待产':
+        if old:
+            pid = old['id']
+            # 状态转移矩阵: 仅 待产→待审核 由 push 置; 其余状态 pop 不碰(状态权在用户/后续工段)
+            if old_st == '待产':
                 props['状态'] = {'select': {'name': '待审核'}}
-            elif plain(keep.get('状态')) not in ('', '待审核'):
-                props.pop('状态', None)      # 已排产/生产中/已交付/弃用: 状态权在后续工段, push不碰
             else:
-                props.pop('状态', None)      # 无状态行(异常)也不硬拉
+                props.pop('状态', None)
             for col in ('选定标题', '选定简介', '排产时间', 'Agent已领取', '备注'):
                 props.pop(col, None)
             r = api('PATCH', f'pages/{pid}', {'properties': props})
             if 'error' in r: sys.exit(f"{b['id']} 属性失败: {r}")
             n = replace_body(pid, page_children(b))
-            print(f"{b['id']} 更新: 属性OK, 正文{n}块, URL={pages[b['id']]['url']}")
+            print(f"{b['id']} 更新: 属性OK, 正文{n}块, URL={old['url']}")
         else:
+            # 新建行: push语义=素材已预处理 → 首推即待审核(CSV显式给其它状态除外)
+            if props['状态']['select']['name'] == '待产':
+                props['状态'] = {'select': {'name': '待审核'}}
             r = api('POST', 'pages', {'parent': {'data_source_id': DS_ID},
                                       'properties': props, 'children': page_children(b)},
                     ver='2026-03-11')
             if 'error' in r: sys.exit(f"{b['id']} 新建失败: {r}")
-            print(f"{b['id']} 新建: OK, URL={r['url']}")
+            print(f"{b['id']} 新建: OK(待审核), URL={r['url']}")
 
 def cmd_import(csv_path, limit=None):
     ensure_schema()
@@ -280,7 +302,7 @@ def cmd_import(csv_path, limit=None):
                  '画风': rt(row['画风建议'])}
         if row.get('标题草案'): props['标题备选①'] = rt(row['标题草案'])
         st = row.get('状态', '待产')
-        if st in ('待产', '待审核', '已排产', '已领取（生产中）', '已交付', '弃用'):
+        if st in VALID_STATES:
             props['状态'] = {'select': {'name': st}}
         r = api('POST', 'pages', {'parent': {'data_source_id': DS_ID}, 'properties': props},
                 ver='2026-03-11')
@@ -297,11 +319,21 @@ def cmd_poll(today=None):
         {'property': '排产时间', 'date': {'on_or_before': today}},
         {'property': 'Agent已领取', 'checkbox': {'equals': False}}]}
     hits = query_all(flt)
-    # 兜底诊断: 待产+到期+未勾 → 提示自动化未配
-    warn = query_all({'and': [
+    # 兜底诊断(审查BLOCKER修复): 到期未进生产的两类根因分查
+    warn_review = query_all({'and': [
+        {'property': '状态', 'select': {'equals': '待审核'}},
+        {'property': '排产时间', 'date': {'on_or_before': today}},
+        {'property': 'Agent已领取', 'checkbox': {'equals': False}}]})
+    if warn_review:
+        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_review)
+        print(f'⚠️ {len(warn_review)}行待审核+已到期({ids}) → 自动化规则1未配置/未生效(条件须=待审核), 请查页面⚡')
+    warn_raw = query_all({'and': [
         {'property': '状态', 'select': {'equals': '待产'}},
         {'property': '排产时间', 'date': {'on_or_before': today}},
         {'property': 'Agent已领取', 'checkbox': {'equals': False}}]})
+    if warn_raw:
+        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_raw)
+        print(f'⚠️ {len(warn_raw)}行待产+已到期({ids}) → 预处理(push)落后于排产计划')
     for pg in hits:
         pr = pg['properties']
         # 领取动作: 勾checkbox+置生产中 = 单次原子PATCH (竞态审查修复)
@@ -311,8 +343,15 @@ def cmd_poll(today=None):
         if 'error' in r1: sys.exit(f"领取失败: {r1}")
         print(f"工单 {plain(pr.get('排产号'))} | 词={plain(pr.get('核心词'))} | "
               f"标题={plain(pr.get('选定标题')) or '(未选!)'} | 简介={plain(pr.get('选定简介')) or '(未选!)'} | {pg['url']}")
-    if warn:
-        print(f'⚠️ {len(warn)}行已设排产时间但状态仍是待产 → Notion自动化未配置, 请在页面⚡里建规则')
+    # 审查SHOULD: 未选定标题的行不进生产(选定标题=人工审核完成的标志)
+    for pg in hits:
+        pr = pg['properties']
+        if not plain(pr.get('选定标题')):
+            r2 = api('PATCH', f"pages/{pg['id']}", {'properties': {
+                'Agent已领取': {'checkbox': False},
+                '状态': {'select': {'name': '待审核'}}}})
+            if 'id' in r2:
+                print(f"退回: {plain(pr.get('排产号'))} 未选定标题 → 退回待审核(需人工选定后才可投产)")
     # 自愈通道: 历史竞态/中断造成的[已勾但状态=已排产]行, 纠正状态
     stuck = query_all({'and': [
         {'property': '状态', 'select': {'equals': '已排产'}},
@@ -328,6 +367,12 @@ def cmd_deliver(book_id, prompts_path):
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     if book_id not in pages: sys.exit(f'找不到 {book_id}')
     pid = pages[book_id]['id']
+    # ── deliver 准入闸门(数据权限模型): 只有领过料的行可交付 ──
+    st = plain(pages[book_id]['properties'].get('状态'))
+    if st == '已交付':
+        sys.exit(f'{book_id} 已交付, 拒绝重复交付(如需重做: 先人工把状态置回待审核)')
+    if st not in ('已排产', '已领取（生产中）'):
+        sys.exit(f'{book_id} 状态={st}, 未经领取审核的行禁止交付(须先 poll 领取)')
     if len(prompts) != 9 and '--force' not in sys.argv:
         sys.exit(f'提示词{len(prompts)}条≠9(封面1+内页8), 确认无误加 --force')
     children = [{'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
