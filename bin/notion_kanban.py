@@ -362,8 +362,39 @@ def cmd_poll(today=None):
             print(f"自愈: {plain(pg['properties'].get('排产号'))} 已勾未置生产中 → 已纠正")
     print(f'poll完成: 领取{len(hits)}单 (截止{today})')
 
+def validate_l4(doc):
+    """L4 标准文档合规校验(l1-l4-strict-format-template.md + 铁律11/15)
+    任一不过即拒收: deliver 只接受完整标准 L4, 不接受裸提示词"""
+    errs = []
+    if '生图模型：使用图片 5.0 Lite 模型' not in doc:
+        errs.append('铁律15: 缺「生图模型：使用图片 5.0 Lite 模型」全局控制行')
+    for seg in ('我会给你一段文字', '不要在图片中显示', '重要要求', '文字模板制', '视角变化规律'):
+        if seg not in doc:
+            errs.append(f'引导语段缺要素: {seg}')
+    for fld in ('【全局设计约定】', '目标单词：', '目标年龄：', '文字风格：', '风格锚点：', '【主要场景锚点】'):
+        if fld not in doc:
+            errs.append(f'缺 {fld}')
+    for k, n in (('旁白：', 9), ('比例：', 9), ('页面类型：', 9), ('生图提示词：', 9)):
+        if doc.count(k) != n:
+            errs.append(f'「{k}」应为9处(封面1+内页8), 实际{doc.count(k)}')
+    if doc.count('3:4') != 1 or doc.count('16:9') != 8:
+        errs.append(f'比例应为3:4×1+16:9×8, 实际3:4×{doc.count("3:4")} 16:9×{doc.count("16:9")}')
+    if '页面类型：认知页' not in doc:
+        errs.append('缺认知页(l4-page-count-checklist: 最常漏的一张)')
+    if '页面类型：封面页' not in doc or '页面类型：总结语境收束页' not in doc:
+        errs.append('缺封面页或收束页')
+    if '每张图只允许出现这 2 个文字' not in doc:
+        errs.append('缺末尾1行精简提示')
+    import re as _re
+    if _re.search(r'不对|应该是|更正|注意:这里|不要写', doc):
+        errs.append('铁律11: 引导语含自我纠错措辞(不对/应该是/更正/注意:这里/不要写)')
+    return errs
+
 def cmd_deliver(book_id, prompts_path):
-    prompts = [l.strip() for l in Path(prompts_path).read_text(encoding='utf-8').splitlines() if l.strip()]
+    doc = Path(prompts_path).read_text(encoding='utf-8').strip()
+    errs = validate_l4(doc)
+    if errs and '--force' not in sys.argv:
+        sys.exit('L4文档不合标准:\n- ' + '\n- '.join(errs) + '\n(按 references/l1-l4-strict-format-template.md 重写, 确认覆盖加 --force)')
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     if book_id not in pages: sys.exit(f'找不到 {book_id}')
     pid = pages[book_id]['id']
@@ -373,20 +404,25 @@ def cmd_deliver(book_id, prompts_path):
         sys.exit(f'{book_id} 已交付, 拒绝重复交付(如需重做: 先人工把状态置回待审核)')
     if st not in ('已排产', '已领取（生产中）'):
         sys.exit(f'{book_id} 状态={st}, 未经领取审核的行禁止交付(须先 poll 领取)')
-    if len(prompts) != 9 and '--force' not in sys.argv:
-        sys.exit(f'提示词{len(prompts)}条≠9(封面1+内页8), 确认无误加 --force')
+    # Notion 单块 rich_text ≤2000字符: 按空行边界分块为连续 code 块
+    chunks, cur = [], ''
+    for para in doc.split('\n\n'):
+        cand = (cur + '\n\n' + para) if cur else para
+        if len(cand) > 1900 and cur:
+            chunks.append(cur); cur = para
+        else:
+            cur = cand
+        while len(cur) > 1900:              # 单段超长兜底: 硬切
+            chunks.append(cur[:1900]); cur = cur[1900:]
+    if cur: chunks.append(cur)
     children = [{'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
         {'text': {'content': '生图提示词（定稿）'}}]}}]
-    labels = ['封面'] + [f'内页{i}' for i in range(1, len(prompts))]
-    for lab, ptext in zip(labels, prompts):
-        children.append({'object': 'block', 'type': 'heading_3', 'heading_3': {'rich_text': [
-            {'text': {'content': lab}}]}})
-        children.append({'object': 'block', 'type': 'code', 'code': {
-            'language': 'plain text', 'rich_text': [{'text': {'content': ptext}}]}})
+    children += [{'object': 'block', 'type': 'code', 'code': {
+        'language': 'plain text', 'rich_text': [{'text': {'content': c}}]}} for c in chunks]
     n = replace_body_append(pid, children)
     r = api('PATCH', f'pages/{pid}', {'properties': {'状态': {'select': {'name': '已交付'}}}})
     assert 'id' in r, str(r)[:200]
-    print(f'{book_id} 交付完成: 提示词{len(prompts)}条写入({n}块), 状态→已交付')
+    print(f'{book_id} 交付完成: L4标准文档({len(doc)}字, 校验{"强制通过(--force)" if errs else "通过"})写入{n}块, 状态→已交付')
 
 def replace_body_append(page_id, children):
     r = api('PATCH', f'blocks/{page_id}/children', {'children': children})
