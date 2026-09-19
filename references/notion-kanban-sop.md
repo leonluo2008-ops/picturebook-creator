@@ -60,12 +60,12 @@
 ```bash
 # 0. 生成台账(仅首次/新批次): 产出CSV后导入, CSV即弃
 python3 bin/gen_schedule.py ...
-# 1. 导入300册(属性行, 断点续传: 已存在排产号自动跳过, 0.35s/行限速)
-python3 bin/notion_kanban.py import data/production/排产台账-3个月300册.csv
+# 1. 导入台账(属性行, 断点续传: 已存在排产号自动跳过, 0.35s/行限速)——导入后CSV即弃, 产物不入仓
+python3 bin/notion_kanban.py import <排产台账.csv>
 # 2. 素材预处理(L1-L3)完成后: 三件套md → 六段页面 + 备选列回填 + **状态待产→待审核(Agent置位,=预处理完成标志)**
-#    （默认读 排产台账-3个月300册.csv 补元数据, 可传第2参指定CSV）
+#    push 只写 md 来源字段(核心词/链形/备选/旁白); 月/词型/绑定形态/画风等元数据单源=Notion属性栏, 无CSV参数
 #    重推安全: 未交付页可安全重推(先append后归档); 已交付页(含生图提示词节)拒绝重建, 确认覆盖加 --force
-python3 bin/notion_kanban.py push data/production/测试批B001-B005-标题简介旁白.md [台账.csv]
+python3 bin/notion_kanban.py push <三件套.md>
 # 3. 每日领料: 筛[已排产+排产时间≤今日+未勾] → 自动勾选+置生产中+打印工单
 python3 bin/notion_kanban.py poll [YYYY-MM-DD]
 # 4. L4完成后交付: **完整L4标准文档**(plaintext引导语4段+【全局设计约定】+【主要场景锚点】+

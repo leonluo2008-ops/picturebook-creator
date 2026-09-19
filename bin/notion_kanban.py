@@ -226,21 +226,21 @@ def replace_body(page_id, children):
         time.sleep(0.2)
     return len(r['results'])
 
-def book_props(b, csvrow):
+def book_props(b, is_new=False):
+    """属性构造(Notion唯一中控版): 只写 md 来源字段(排产号/核心词/链形/标题备选/简介备选)。
+    月/词型/绑定形态/画风等元数据单源=Notion属性栏, push 永不回写防双账本;
+    新建行状态=待审核(push语义=预处理完成), 更新行状态由调用方按转移矩阵处理。"""
     p = {'排产号': {'title': [{'text': {'content': b['id']}}]},
-         '核心词': rt(b['word']), '链形': rt(b['chain']), '画风': rt(csvrow.get('画风建议', '')),
-         '月': rt(csvrow.get('月', '')), '词型': rt(csvrow.get('词型分类', '')),
-         '绑定形态': rt(csvrow.get('绑定形态', '')),
-         '状态': {'select': {'name': csvrow.get('状态', '待产')
-                             if csvrow.get('状态', '待产') in VALID_STATES
-                             else '待产'}}}
+         '核心词': rt(b['word']), '链形': rt(b['chain'])}
+    if is_new:
+        p['状态'] = {'select': {'name': '待审核'}}
     for i, t in enumerate(b['titles'][:3]):
         p[f'标题备选{"①②③"[i]}'] = rt(t)
     for i, s in enumerate(b['intros'][:4]):
         p[f'简介备选{"①②③④"[i]}'] = rt(s)
     return p
 
-def cmd_push(md_path, csv_path=None):
+def cmd_push(md_path):
     ensure_schema()
     books = parse_books(md_path)
     # ── 批量质量闸门(fail-closed): 标题备选核心词 + 开场句查重, 违规不落 Notion ──
@@ -251,17 +251,8 @@ def cmd_push(md_path, csv_path=None):
     bc = batch_check({b['word']: (b['rows'][0][1], b['rows'][0][2]) for b in books if b['rows']})
     if bc:
         sys.exit('开场句查重拦截:\n- ' + '\n- '.join(bc))
-    csvrows = {}
-    csv_file = Path(csv_path) if csv_path else REPO / 'data/production/排产台账-3个月300册.csv'
-    with open(csv_file, encoding='utf-8-sig') as f:
-        for row in csv.DictReader(f):
-            csvrows[row['排产号']] = row
-    books = parse_books(md_path)
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     for b in books:
-        row = csvrows.get(b['id'], {})
-        if not row:
-            print(f"⚠️ {b['id']} 不在 {csv_file.name}: 月/词型/画风等列留空")
         old = pages.get(b['id'])
         # ── 行级数据筛查(数据权限模型, 见SOP§数据权限): 已交付/弃用行 Agent 不可触 ──
         old_st = plain(old['properties'].get('状态')) if old else None
@@ -271,14 +262,13 @@ def cmd_push(md_path, csv_path=None):
         if old_st == '弃用':
             print(f"{b['id']} 跳过(弃用行, Agent 无权复活)")
             continue
-        props = book_props(b, row)
+        props = book_props(b, is_new=not old)
         if old:
             pid = old['id']
-            # 状态转移矩阵: 仅 待产→待审核 由 push 置; 其余状态 pop 不碰(状态权在用户/后续工段)
+            # 状态转移矩阵: 仅 待产→待审核 由 push 置; 其余状态不碰(状态权在用户/后续工段)
+            # 元数据列(月/词型/绑定形态/画风)不在 props 里, 天然不碰=Notion单源
             if old_st == '待产':
                 props['状态'] = {'select': {'name': '待审核'}}
-            else:
-                props.pop('状态', None)
             for col in ('选定标题', '选定简介', '排产时间', 'Agent已领取', '备注'):
                 props.pop(col, None)
             r = api('PATCH', f'pages/{pid}', {'properties': props})
@@ -456,7 +446,7 @@ def cmd_status():
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'status'
     if cmd == 'migrate': migrate()
-    elif cmd == 'push': cmd_push(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
+    elif cmd == 'push': cmd_push(sys.argv[2])
     elif cmd == 'import': cmd_import(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else None)
     elif cmd == 'poll': cmd_poll(sys.argv[2] if len(sys.argv) > 2 else None)
     elif cmd == 'deliver': cmd_deliver(sys.argv[2], sys.argv[3])
