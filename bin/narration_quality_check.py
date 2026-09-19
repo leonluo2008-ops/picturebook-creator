@@ -234,15 +234,21 @@ def main():
         print("未解析到旁白行（期望「序号 | 英文 | 中文」格式）")
         sys.exit(1)
     issues, warns = check_book(rows)
+    # Windows GBK 控制台兼容: ✗/⚠ 不在 GBK 内, 输出流不可写时降级 ASCII 标记
+    try:
+        "✗⚠".encode(sys.stdout.encoding or "ascii")
+        mark_bad, mark_warn = "✗", "⚠"
+    except (UnicodeEncodeError, LookupError):
+        mark_bad, mark_warn = "X", "?"
     print(f"解析 {len(rows)} 行旁白")
     if issues:
         print("\n[必须修复]")
         for i in issues:
-            print("  ✗", i)
+            print(" ", mark_bad, i)
     if warns:
         print("\n[建议人工确认]")
         for w in warns:
-            print("  ⚠", w)
+            print(" ", mark_warn, w)
     if not issues and not warns:
         print("机械预检全过——请继续人工朗读终检（自然语境终检 > 机械检查）")
 

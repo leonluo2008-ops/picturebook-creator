@@ -26,8 +26,8 @@ args = ap.parse_args()
 random.seed(args.seed)
 TOTAL = args.months * args.per_month
 
-rows = list(csv.DictReader(open(os.path.join(args.vocab_dir, 'dolch.csv'))))
-fry = list(csv.DictReader(open(os.path.join(args.vocab_dir, 'fry_1-300.csv'))))
+rows = list(csv.DictReader(open(os.path.join(args.vocab_dir, 'dolch.csv'), encoding='utf-8')))
+fry = list(csv.DictReader(open(os.path.join(args.vocab_dir, 'fry_1-300.csv'), encoding='utf-8')))
 fry_map = {r['word'].lower(): int(r['fry_rank']) for r in fry}
 
 VERBS = ['run','jump','play','eat','sleep','walk','ride','sing','wash','open','stop','read','write','draw','drink','pick','carry','cut','grow','hold','laugh','start','try','fall','fly','give','help','make','put','take','tell','use','work','call','buy','sit','pull','find','look','see','said','go','come','get','ask','live','want','wish','hear','talk','leave','turn','point','show','spell','study','follow','miss','need','change','move']
