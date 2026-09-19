@@ -242,6 +242,15 @@ def book_props(b, csvrow):
 
 def cmd_push(md_path, csv_path=None):
     ensure_schema()
+    books = parse_books(md_path)
+    # ── 批量质量闸门(fail-closed): 标题备选核心词 + 开场句查重, 违规不落 Notion ──
+    from narration_quality_check import title_check, batch_check
+    tc = title_check({b['word']: b['titles'] for b in books})
+    if tc:
+        sys.exit('标题备选闸门拦截:\n- ' + '\n- '.join(tc) + '\n(每条备选必须显示核心词, 修正 md 后重推)')
+    bc = batch_check({b['word']: (b['rows'][0][1], b['rows'][0][2]) for b in books if b['rows']})
+    if bc:
+        sys.exit('开场句查重拦截:\n- ' + '\n- '.join(bc))
     csvrows = {}
     csv_file = Path(csv_path) if csv_path else REPO / 'data/production/排产台账-3个月300册.csv'
     with open(csv_file, encoding='utf-8-sig') as f:

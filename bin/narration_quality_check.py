@@ -15,6 +15,7 @@
 """
 import sys
 import re
+import json
 
 MAX_CN_CHARS = 12          # 硬上限（≤11字左右 + 1 容差）
 SEGMENT_MAX = 7            # 双短句节拍：逗号分节后单节建议 ≤7 字
@@ -196,21 +197,26 @@ CN_MAP = {'jump': '跳', 'run': '跑', 'big': '大', 'apple': '苹果', 'rain': 
 
 def title_check(books_titles):
     """标题备选核心词闸门(2026-09-19用户定版): books_titles = {word: [备选1, 备选2, ...]}
-    每条备选必须显示英文核心词(忽略大小写字面匹配)。违规清单返回, 空列表=全过。
+    每条备选必须显示英文核心词(忽略大小写+词边界; 英文词须与非字母字符分隔, 紧贴汉字会误报——现惯例有「 · 」分隔)。
+    空/空白备选=违规(缺失≠合格); 备选<3条=警告级。违规清单返回, 空列表=全过。
     背景: 旧「拟声式允许隐去核心词」豁免已作废——《滴答滴答 · Tick Tock》类被用户审核拦下。"""
     problems = []
     for word, titles in books_titles.items():
-        w = word.strip().lower()
+        w = (word or '').strip().lower()
+        if not w or not isinstance(titles, list):
+            problems.append(f'{word!r} 数据非法(word为空或titles非list)'); continue
         for i, t in enumerate(titles, 1):
-            # 词边界匹配: 短词(me/go/a)不得被子串误放行(如 me 匹配进 time)
-            if t and not re.search(rf'\b{re.escape(w)}\b', t.lower()):
-                problems.append(f"{word} 备选{i}《{t}》未显示核心词 → 重写该条(避撞名=换中文侧结构, 不隐去英文词)")
+            # 词边界 lookaround: 短词(me/go)不误放行(me↛time), CJK紧贴不误报
+            if not (t or '').strip() or not re.search(rf'(?<![A-Za-z]){re.escape(w)}(?![A-Za-z])', t.lower()):
+                problems.append(f"{word} 备选{i}《{t or '(空)'}》未显示核心词 → 重写该条(避撞名=换中文侧结构, 不隐去英文词)")
+        if 0 < len([t for t in titles if (t or '').strip()]) < 3:
+            problems.append(f'{word} 标题备选不足3条(锚·排产标题三备选)')
     return problems
 
 
 def batch_check(books_first_rows, word_cn=None):
     """批量开场句查重(2026-09-18用户定版): books_first_rows = {word: (en_row1, cn_row1)}
-     骨架归一默认接模块级 CN_MAP(中文同现率检查同源), word_cn 显式传入优先覆盖。
+    骨架归一默认接模块级 CN_MAP(中文同现率检查同源), word_cn 显式传入优先覆盖。
     同批内骨架重复 ≥2 册 → 问题清单（模板化=必须修复, 锚·批量开场句查重）。"""
     merged = dict(CN_MAP)
     merged.update(word_cn or {})
@@ -232,6 +238,12 @@ def batch_check(books_first_rows, word_cn=None):
 
 def main():
     args = sys.argv[1:]
+    if args and args[0] == '--titles':     # 标题备选闸门CLI: --titles '<json: {word:[备选...]}>' 或 @file.json
+        src = args[1] if len(args) > 1 else '{}'
+        data = json.load(open(src[1:], encoding='utf-8')) if src.startswith('@') else json.loads(src)
+        probs = title_check(data)
+        print('\n'.join(probs) if probs else 'title_check 全过 ✓')
+        sys.exit(1 if probs else 0)
     if args and args[0] == '--demo':
         text = """| 1 | SMALL AND BIG | 小和大 SMALL AND BIG |
 | 2 | The grass is small | 小草小小的,small |
