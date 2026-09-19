@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""notion_kanban.py — 绘本排产中控台(Notion)工具链
+四命令: import/push/poll/deliver (+migrate/status)
+事实源: 排产台账DB(见CONFIG) | 凭证: ~/.hermes/.env NOTION_API_KEY
+"""
+import sys, csv, json, time, re, datetime, urllib.request, urllib.error, urllib.parse
+from pathlib import Path
+
+# ---- CONFIG (铁律1: 唯一硬编码区) ----
+DB_ID = '3e0a3f92-69aa-81a6-a5b5-e2bb7962e207'
+DS_ID = '3e0a3f92-69aa-8181-b457-000bcba7fc09'
+PARENT = '3e0a3f92-69aa-81b4-8385-c2a5309d0824'
+ENV_PATH = Path.home() / '.hermes' / '.env'
+REPO = Path(__file__).resolve().parent.parent
+
+KEY = [l.split('=', 1)[1].strip() for l in ENV_PATH.read_text().splitlines()
+       if l.startswith('NOTION_API_KEY=')][0]
+
+def api(method, path, payload=None, ver='2022-06-28'):
+    req = urllib.request.Request('https://api.notion.com/v1/' + path, method=method,
+        headers={'Authorization': 'Bearer ' + KEY, 'Notion-Version': ver,
+                 'Content-Type': 'application/json'},
+        data=json.dumps(payload).encode() if payload is not None else None)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            if e.code == 429 and attempt < 2:
+                time.sleep(2 ** (attempt + 1)); continue
+            return {'error': e.code, 'body': body[:300]}
+        except urllib.error.URLError:
+            if attempt < 2: time.sleep(2); continue
+            raise
+    return {'error': 'retry-exhausted'}
+
+def rt(v): return {'rich_text': [{'text': {'content': v}}]} if v else {'rich_text': []}
+
+def query_all(filter_):
+    out, cursor = [], None
+    while True:
+        p = {'page_size': 100}
+        if filter_: p['filter'] = filter_
+        if cursor: p['start_cursor'] = cursor
+        r = api('POST', f'data_sources/{DS_ID}/query', p, ver='2026-03-11')
+        if 'error' in r: sys.exit(f'query失败: {r}')
+        out += r['results']; cursor = r.get('next_cursor')
+        if not cursor: return out
+
+def plain(prop):
+    if not prop: return ''
+    t = prop.get('type')
+    if t == 'title': return ''.join(x['plain_text'] for x in prop['title'])
+    if t == 'rich_text': return ''.join(x['plain_text'] for x in prop['rich_text'])
+    if t == 'select': return prop['select']['name'] if prop['select'] else ''
+    if t == 'date': return (prop['date'] or {}).get('start', '')
+    if t == 'checkbox': return prop['checkbox']
+    return ''
+
+# ---- schema ----
+RICH_NEW = ['月', '词型', '绑定形态', '链形', '画风',
+            '标题备选①', '标题备选②', '标题备选③',
+            '简介备选①', '简介备选②', '简介备选③', '简介备选④']
+STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '已排产', 'color': 'blue'},
+               {'name': '已领取（生产中）', 'color': 'yellow'}, {'name': '已交付', 'color': 'green'},
+               {'name': '弃用', 'color': 'red'}]
+
+def ensure_schema():
+    ds = api('GET', f'data_sources/{DS_ID}', ver='2026-03-11')
+    props = ds['properties']
+    patch = {}
+    for name in RICH_NEW:
+        if name not in props: patch[name] = {'rich_text': {}}
+    if props.get('状态', {}).get('type') == 'select':
+        have = [o['name'] for o in props['状态']['select'].get('options', [])]
+        if have != [o['name'] for o in STATUS_OPTS]:
+            patch['状态'] = {'select': {'options': STATUS_OPTS}}
+    if patch:
+        r = api('PATCH', f'databases/{DB_ID}', {'properties': patch})
+        if 'error' in r: sys.exit(f'schema补建失败: {r}')
+    return {n: props.get(n, {}).get('type', '新建') for n in list(props.keys()) + [x for x in RICH_NEW if x not in props]}
+
+def migrate():
+    """选定标题/选定简介: select→rich_text (300册下拉爆炸修正)
+    Notion铁律: 属性类型转换被带值阻塞 → 临时列拷值→null删旧→改名(删属性=null, 文档原文"Properties set to null will be removed")
+    """
+    ds = api('GET', f'data_sources/{DS_ID}', ver='2026-03-11')
+    p = ds['properties']
+    for col in ('选定标题', '选定简介'):
+        assert p.get(col, {}).get('type') == 'select', f'{col} 已是 {p.get(col, {}).get("type")}, 无需迁移'
+    # 1) 临时列
+    r = api('PATCH', f'databases/{DB_ID}',
+            {'properties': {'选定标题r': {'rich_text': {}}, '选定简介r': {'rich_text': {}}}})
+    assert 'error' not in r, str(r)[:200]
+    # 2) 拷值(select值→r列)
+    pages = query_all(None)
+    val = {}
+    for pg in pages:
+        pr = pg['properties']
+        t = (pr.get('选定标题', {}).get('select') or {}).get('name', '')
+        s = (pr.get('选定简介', {}).get('select') or {}).get('name', '')
+        if t or s:
+            body = {}
+            if t: body['选定标题r'] = rt(t)
+            if s: body['选定简介r'] = rt(s)
+            r = api('PATCH', f"pages/{pg['id']}", {'properties': body})
+            assert 'id' in r, str(r)[:200]
+            val[plain(pr.get('排产号'))] = (t, s)
+    # 3) null删旧select列(键=URL编码的属性id)
+    del_body = {urllib.parse.quote(p[c]['id'], safe=''): None for c in ('选定标题', '选定简介')}
+    r = api('PATCH', f'data_sources/{DS_ID}', {'properties': del_body}, ver='2026-03-11')
+    if 'error' in r: sys.exit(f'删select失败: {r}')
+    # 4) 改名
+    r = api('PATCH', f'data_sources/{DS_ID}',
+            {'properties': {'选定标题r': {'name': '选定标题'}, '选定简介r': {'name': '选定简介'}}},
+            ver='2026-03-11')
+    if 'error' in r: sys.exit(f'改名失败: {r}')
+    back = api('GET', f'data_sources/{DS_ID}', ver='2026-03-11')['properties']
+    for col in ('选定标题', '选定简介'):
+        assert back[col]['type'] == 'rich_text', col
+    print(f'迁移完成: {len(val)} 行值保留 {val if val else "(无已选值)"}; 两列均 rich_text')
+
+# ---- md 解析 ----
+H2_RE = re.compile(r'^## (B\d{3}) · (\S+)（(.+?)）· 开场型：(.+)$')
+
+def parse_books(md_path):
+    text = Path(md_path).read_text(encoding='utf-8')
+    books, cur = [], None
+    for line in text.splitlines():
+        m = H2_RE.match(line.strip())
+        if m:
+            cur = {'id': m[1], 'word': m[2], 'chain': m[3].split('：')[0], 'chain_full': m[3],
+                   'opener': m[4], 'titles': [], 'intros': [], 'rows': [], 'l4': ''}
+            books.append(cur); continue
+        if cur is None: continue
+        s = line.strip()
+        tm = re.match(r'^\d+\.\s(《.+?》)', s)
+        if tm and len(cur['titles']) < 3 and not cur['rows']:
+            cur['titles'].append(tm[1]); continue
+        if s.startswith('**简介备选') or s.startswith('**标题备选') or s.startswith('**双语旁白**'):
+            continue
+        im = s.rsplit('（方向', 1)
+        if re.match(r'^\d+\.\s', s) and len(im) == 2 and not cur['rows'] and not cur['titles']:
+            pass
+        if re.match(r'^\d+\.\s', s) and len(im) == 2 and cur['titles'] and len(cur['intros']) < 4 \
+           and not s.startswith('《'):
+            cur['intros'].append(im[0][2:].strip()); continue
+        rm = re.match(r'^\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$', s)
+        if rm and rm[1] != '序号':
+            cur['rows'].append((rm[1], rm[2], rm[3])); continue
+        if s.startswith('**L4 工单**：'):
+            cur['l4'] = s.replace('**L4 工单**：', '').strip()
+    return books
+
+GUIDE = ("📖 本页使用规则（人与 Agent 共读）\n"
+    "① 标题/简介唯一事实源=属性栏【选定标题/选定简介】；候选全文在【标题备选①②③/简介备选①②③④】；正文不存放标题简介（防双账本失同步）。\n"
+    "② 状态联动（派生视图，不手拉）：设排产时间→自动已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
+    "③ Agent 领料协议：筛选【状态=已排产 且 排产时间≤当日 且 Agent已领取未勾】→领取=勾选Agent已领取→读本页旁白表格+L4工单→产出L4生图提示词。\n"
+    "④ 交付物=L4生图提示词（封面1+内页8，纯代码块），写入正文【生图提示词（定稿）】节，同时置状态已交付；用户手动执行生图。\n"
+    "⑤ 修改意见写页尾✍️。")
+
+def page_children(b):
+    tbl = {'type': 'table', 'table': {'table_width': 3, 'has_column_header': True,
+        'has_row_header': False, 'children': [
+            {'type': 'table_row', 'table_row': {'cells': [
+                [{'type': 'text', 'text': {'content': '序号'}}],
+                [{'type': 'text', 'text': {'content': '英文'}}],
+                [{'type': 'text', 'text': {'content': '中文'}}]]}}]}}
+    tbl['table']['children'] += [
+        {'type': 'table_row', 'table_row': {'cells': [
+            [{'type': 'text', 'text': {'content': n}}],
+            [{'type': 'text', 'text': {'content': e}}],
+            [{'type': 'text', 'text': {'content': c}}]]}} for n, e, c in b['rows']]
+    return [
+        {'object': 'block', 'type': 'heading_1', 'heading_1': {'rich_text': [
+            {'text': {'content': f"{b['id']} · {b['word']} · {b['chain']} · 开场型:{b['opener']}"}}]}},
+        {'object': 'block', 'type': 'callout', 'callout': {'icon': {'type': 'emoji', 'emoji': '📖'},
+            'color': 'blue_background', 'rich_text': [{'text': {'content': GUIDE}}]}},
+        {'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
+            {'text': {'content': '双语旁白（定稿）'}}]}},
+        tbl,
+        {'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
+            {'text': {'content': 'L4 工单（生图执行规格）'}}]}},
+        {'object': 'block', 'type': 'paragraph', 'paragraph': {'rich_text': [
+            {'text': {'content': b['l4'] or '（待补）'}}]}},
+        {'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
+            {'text': {'content': '✍️ 修改意见（旁白/工单）'}}]}},
+        {'object': 'block', 'type': 'callout', 'callout': {'icon': {'type': 'emoji', 'emoji': '🖊'},
+            'color': 'gray_background', 'rich_text': [{'text': {'content': '（无）'}}]}},
+    ]
+
+def replace_body(page_id, children):
+    old = api('GET', f'blocks/{page_id}/children', ver='2026-03-11')
+    if 'error' in old: sys.exit(f'读children失败: {old}')
+    for b in old['results']:
+        r = api('PATCH', f"blocks/{b['id']}", {'archived': True})
+        if 'error' in r: sys.exit(f'归档块失败: {r}')
+    r = api('PATCH', f'blocks/{page_id}/children', {'children': children})
+    if 'error' in r: sys.exit(f'append失败: {r}')
+    return len(r['results'])
+
+def book_props(b, csvrow):
+    p = {'排产号': {'title': [{'text': {'content': b['id']}}]},
+         '核心词': rt(b['word']), '链形': rt(b['chain']), '画风': rt(csvrow.get('画风建议', '')),
+         '月': rt(csvrow.get('月', '')), '词型': rt(csvrow.get('词型分类', '')),
+         '绑定形态': rt(csvrow.get('绑定形态', '')),
+         '状态': {'select': {'name': csvrow.get('状态', '待产')
+                             if csvrow.get('状态', '待产') in ('待产', '已排产', '已领取（生产中）', '已交付', '弃用')
+                             else '待产'}}}
+    for i, t in enumerate(b['titles'][:3]):
+        p[f'标题备选{"①②③"[i]}'] = rt(t)
+    for i, s in enumerate(b['intros'][:4]):
+        p[f'简介备选{"①②③④"[i]}'] = rt(s)
+    return p
+
+def cmd_push(md_path):
+    ensure_schema()
+    csvrows = {}
+    with open(REPO / 'data/production/排产台账-3个月300册.csv', encoding='utf-8-sig') as f:
+        for row in csv.DictReader(f):
+            csvrows[row['排产号']] = row
+    books = parse_books(md_path)
+    pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
+    for b in books:
+        row = csvrows.get(b['id'], {})
+        props = book_props(b, row)
+        if b['id'] in pages:
+            pid = pages[b['id']]['id']
+            keep = pages[b['id']]['properties']
+            for col in ('选定标题', '选定简介', '排产时间', 'Agent已领取', '备注'):
+                props.pop(col, None)
+            if plain(keep.get('状态')):            # 已有状态(人工/流程置的)不覆盖
+                props.pop('状态', None)
+            r = api('PATCH', f'pages/{pid}', {'properties': props})
+            if 'error' in r: sys.exit(f"{b['id']} 属性失败: {r}")
+            n = replace_body(pid, page_children(b))
+            print(f"{b['id']} 更新: 属性OK, 正文{n}块, URL={pages[b['id']]['url']}")
+        else:
+            r = api('POST', 'pages', {'parent': {'data_source_id': DS_ID},
+                                      'properties': props, 'children': page_children(b)},
+                    ver='2026-03-11')
+            if 'error' in r: sys.exit(f"{b['id']} 新建失败: {r}")
+            print(f"{b['id']} 新建: OK, URL={r['url']}")
+
+def cmd_import(csv_path, limit=None):
+    ensure_schema()
+    with open(csv_path, encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
+    have = {plain(p['properties'].get('排产号')) for p in query_all(None)}
+    done = skip = 0
+    for row in rows:
+        if limit and done >= limit: break
+        bid = row['排产号']
+        if bid in have: skip += 1; continue
+        props = {'排产号': {'title': [{'text': {'content': bid}}]},
+                 '核心词': rt(row['核心词']), '月': rt(row['月']), '词型': rt(row['词型分类']),
+                 '绑定形态': rt(row['绑定形态']), '链形': rt(row['链形建议']),
+                 '画风': rt(row['画风建议'])}
+        if row.get('标题草案'): props['标题备选①'] = rt(row['标题草案'])
+        st = row.get('状态', '待产')
+        if st in ('待产', '已排产', '已领取（生产中）', '已交付', '弃用'):
+            props['状态'] = {'select': {'name': st}}
+        r = api('POST', 'pages', {'parent': {'data_source_id': DS_ID}, 'properties': props},
+                ver='2026-03-11')
+        if 'error' in r: sys.exit(f'{bid} 失败: {r}')
+        done += 1
+        if done % 25 == 0: print(f'…{done} 已导入')
+        time.sleep(0.35)
+    print(f'导入完成: 新增{done} 跳过(已存在){skip} / 总{len(rows)}行')
+
+def cmd_poll(today=None):
+    today = today or datetime.date.today().isoformat()
+    flt = {'and': [
+        {'property': '状态', 'select': {'equals': '已排产'}},
+        {'property': '排产时间', 'date': {'on_or_before': today}},
+        {'property': 'Agent已领取', 'checkbox': {'equals': False}}]}
+    hits = query_all(flt)
+    # 兜底诊断: 待产+到期+未勾 → 提示自动化未配
+    warn = query_all({'and': [
+        {'property': '状态', 'select': {'equals': '待产'}},
+        {'property': '排产时间', 'date': {'on_or_before': today}},
+        {'property': 'Agent已领取', 'checkbox': {'equals': False}}]})
+    for pg in hits:
+        pr = pg['properties']
+        # 领取动作: 勾checkbox + 兜底置生产中(自动化缺席时)
+        r1 = api('PATCH', f"pages/{pg['id']}", {'properties': {'Agent已领取': {'checkbox': True}}})
+        if 'error' in r1: sys.exit(f"勾选失败: {r1}")
+        if plain(pr.get('状态')) != '已领取（生产中）':
+            api('PATCH', f"pages/{pg['id']}", {'properties': {'状态': {'select': {'name': '已领取（生产中）'}}}})
+        print(f"工单 {plain(pr.get('排产号'))} | 词={plain(pr.get('核心词'))} | "
+              f"标题={plain(pr.get('选定标题')) or '(未选!)'} | 简介={plain(pr.get('选定简介')) or '(未选!)'} | {pg['url']}")
+    if warn:
+        print(f'⚠️ {len(warn)}行已设排产时间但状态仍是待产 → Notion自动化未配置, 请在页面⚡里建规则')
+    print(f'poll完成: 领取{len(hits)}单 (截止{today})')
+
+def cmd_deliver(book_id, prompts_path):
+    prompts = [l.strip() for l in Path(prompts_path).read_text(encoding='utf-8').splitlines() if l.strip()]
+    pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
+    if book_id not in pages: sys.exit(f'找不到 {book_id}')
+    pid = pages[book_id]['id']
+    if len(prompts) not in (0, 9) and '--force' not in sys.argv:
+        sys.exit(f'提示词{len(prompts)}条≠9(封面1+内页8), 确认无误加 --force')
+    children = [{'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
+        {'text': {'content': '生图提示词（定稿）'}}]}}]
+    labels = ['封面'] + [f'内页{i}' for i in range(1, len(prompts))]
+    for lab, ptext in zip(labels, prompts):
+        children.append({'object': 'block', 'type': 'heading_3', 'heading_3': {'rich_text': [
+            {'text': {'content': lab}}]}})
+        children.append({'object': 'block', 'type': 'code', 'code': {
+            'language': 'plain text', 'rich_text': [{'text': {'content': ptext}}]}})
+    n = replace_body_append(pid, children)
+    r = api('PATCH', f'pages/{pid}', {'properties': {'状态': {'select': {'name': '已交付'}}}})
+    assert 'id' in r, str(r)[:200]
+    print(f'{book_id} 交付完成: 提示词{len(prompts)}条写入({n}块), 状态→已交付')
+
+def replace_body_append(page_id, children):
+    r = api('PATCH', f'blocks/{page_id}/children', {'children': children})
+    if 'error' in r: sys.exit(f'append失败: {r}')
+    return len(r['results'])
+
+def cmd_status():
+    pages = query_all(None)
+    cnt = {}
+    for p in pages:
+        s = plain(p['properties'].get('状态')) or '(无状态)'
+        cnt[s] = cnt.get(s, 0) + 1
+    print(f'台账共{len(pages)}行: ' + ' | '.join(f'{k}={v}' for k, v in sorted(cnt.items())))
+
+if __name__ == '__main__':
+    cmd = sys.argv[1] if len(sys.argv) > 1 else 'status'
+    if cmd == 'migrate': migrate()
+    elif cmd == 'push': cmd_push(sys.argv[2])
+    elif cmd == 'import': cmd_import(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else None)
+    elif cmd == 'poll': cmd_poll(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif cmd == 'deliver': cmd_deliver(sys.argv[2], sys.argv[3])
+    elif cmd == 'status': cmd_status()
+    else: sys.exit('用法: migrate|push <md>|import <csv> [limit]|poll [date]|deliver <排产号> <prompts>|status')
