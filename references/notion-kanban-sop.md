@@ -67,13 +67,15 @@ python3 bin/notion_kanban.py import data/production/排产台账-3个月300册.c
 python3 bin/notion_kanban.py push data/production/测试批B001-B005-标题简介旁白.md [台账.csv]
 # 3. 每日领料: 筛[已排产+排产时间≤今日+未勾] → 自动勾选+置生产中+打印工单
 python3 bin/notion_kanban.py poll [YYYY-MM-DD]
-# 4. L4完成后交付: 提示词9行(封面1+内页8) → 页面「生图提示词(定稿)」节 + 状态置已交付
-python3 bin/notion_kanban.py deliver B00X prompts.txt
+# 4. L4完成后交付: **完整L4标准文档**(plaintext引导语4段+【全局设计约定】+【主要场景锚点】+
+#    每页4字段旁白/比例/页面类型/生图提示词×9 + 末尾1行) → 「生图提示词(定稿)」节 + 状态置已交付
+#    deliver内置校验(铁律11/15+页数/比例/认知页等), 不合标准的裸提示词直接拒收
+python3 bin/notion_kanban.py deliver B00X b00x_l4.txt
 # 任意时刻: 台账状态计数
 python3 bin/notion_kanban.py status
 ```
 
-**单册页面六段结构**（push 生成，人与 Agent 共读）：H1 信息行 → 📖使用规则callout → 双语旁白table(序号|英文|中文) → L4工单 → 生图提示词(定稿,交付后) → ✍️修改意见callout。
+**单册页面六段结构**（push 生成，人与 Agent 共读）：H1 信息行 → 📖使用规则callout → 双语旁白table(序号|英文|中文) → L4工单 → 生图提示词(定稿=完整L4标准文档,交付后) → ✍️修改意见callout。
 
 ## 四、API 坑清单（实测踩实, 勿回退）
 
