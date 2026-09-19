@@ -63,7 +63,7 @@ def plain(prop):
 RICH_NEW = ['月', '词型', '绑定形态', '链形', '画风',
             '标题备选①', '标题备选②', '标题备选③',
             '简介备选①', '简介备选②', '简介备选③', '简介备选④']
-STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '已排产', 'color': 'blue'},
+STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '待审核', 'color': 'purple'}, {'name': '已排产', 'color': 'blue'},
                {'name': '已领取（生产中）', 'color': 'yellow'}, {'name': '已交付', 'color': 'green'},
                {'name': '弃用', 'color': 'red'}]
 
@@ -160,7 +160,7 @@ def parse_books(md_path):
 
 GUIDE = ("📖 本页使用规则（人与 Agent 共读）\n"
     "① 标题/简介唯一事实源=属性栏【选定标题/选定简介】；候选全文在【标题备选①②③/简介备选①②③④】；正文不存放标题简介（防双账本失同步）。\n"
-    "② 状态联动（派生视图，不手拉）：设排产时间→自动已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
+    "② 状态联动（派生视图，不手拉）：Agent push 预处理产物→待审核；用户点选定标题/选定简介+设排产时间→自动已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
     "③ Agent 领料协议：筛选【状态=已排产 且 排产时间≤当日 且 Agent已领取未勾】→领取=勾选Agent已领取→读本页旁白表格+L4工单→产出L4生图提示词。\n"
     "④ 交付物=L4生图提示词（封面1+内页8，纯代码块），写入正文【生图提示词（定稿）】节，同时置状态已交付；用户手动执行生图。\n"
     "⑤ 修改意见写页尾✍️。")
@@ -219,7 +219,7 @@ def book_props(b, csvrow):
          '月': rt(csvrow.get('月', '')), '词型': rt(csvrow.get('词型分类', '')),
          '绑定形态': rt(csvrow.get('绑定形态', '')),
          '状态': {'select': {'name': csvrow.get('状态', '待产')
-                             if csvrow.get('状态', '待产') in ('待产', '已排产', '已领取（生产中）', '已交付', '弃用')
+                             if csvrow.get('状态', '待产') in ('待产', '待审核', '已排产', '已领取（生产中）', '已交付', '弃用')
                              else '待产'}}}
     for i, t in enumerate(b['titles'][:3]):
         p[f'标题备选{"①②③"[i]}'] = rt(t)
@@ -244,10 +244,15 @@ def cmd_push(md_path, csv_path=None):
         if b['id'] in pages:
             pid = pages[b['id']]['id']
             keep = pages[b['id']]['properties']
+            # 预处理工段置位: push=素材已预处理 → 待产行翻「待审核」(已有其它状态的不动)
+            if plain(keep.get('状态')) == '待产':
+                props['状态'] = {'select': {'name': '待审核'}}
+            elif plain(keep.get('状态')) not in ('', '待审核'):
+                props.pop('状态', None)      # 已排产/生产中/已交付/弃用: 状态权在后续工段, push不碰
+            else:
+                props.pop('状态', None)      # 无状态行(异常)也不硬拉
             for col in ('选定标题', '选定简介', '排产时间', 'Agent已领取', '备注'):
                 props.pop(col, None)
-            if plain(keep.get('状态')):            # 已有状态(人工/流程置的)不覆盖
-                props.pop('状态', None)
             r = api('PATCH', f'pages/{pid}', {'properties': props})
             if 'error' in r: sys.exit(f"{b['id']} 属性失败: {r}")
             n = replace_body(pid, page_children(b))
@@ -275,7 +280,7 @@ def cmd_import(csv_path, limit=None):
                  '画风': rt(row['画风建议'])}
         if row.get('标题草案'): props['标题备选①'] = rt(row['标题草案'])
         st = row.get('状态', '待产')
-        if st in ('待产', '已排产', '已领取（生产中）', '已交付', '弃用'):
+        if st in ('待产', '待审核', '已排产', '已领取（生产中）', '已交付', '弃用'):
             props['状态'] = {'select': {'name': st}}
         r = api('POST', 'pages', {'parent': {'data_source_id': DS_ID}, 'properties': props},
                 ver='2026-03-11')
