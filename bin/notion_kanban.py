@@ -63,7 +63,7 @@ def plain(prop):
 RICH_NEW = ['月', '词型', '绑定形态', '链形', '画风',
             '标题备选①', '标题备选②', '标题备选③',
             '简介备选①', '简介备选②', '简介备选③', '简介备选④']
-STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '待审核', 'color': 'purple'}, {'name': '已排产', 'color': 'blue'},
+STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '待审核', 'color': 'purple'}, {'name': '已审核', 'color': 'orange'}, {'name': '已排产', 'color': 'blue'},
                {'name': '已领取（生产中）', 'color': 'yellow'}, {'name': '已交付', 'color': 'green'},
                {'name': '弃用', 'color': 'red'}]
 VALID_STATES = tuple(o['name'] for o in STATUS_OPTS)   # 状态白名单单源(审查NIT)
@@ -161,7 +161,7 @@ def parse_books(md_path):
 
 GUIDE = ("📖 本页使用规则（人与 Agent 共读）\n"
     "① 标题/简介唯一事实源=属性栏【选定标题/选定简介】；候选全文在【标题备选①②③/简介备选①②③④】；正文不存放标题简介（防双账本失同步）。\n"
-    "② 状态联动（派生视图，不手拉）：Agent push 预处理产物→待审核；用户点选定标题/选定简介+设排产时间→自动已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
+    "② 状态联动（派生视图，不手拉）：Agent push 预处理产物→待审核；用户审核裁决手动置已审核→自动化转已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
     "③ Agent 领料协议：筛选【状态=已排产 且 排产时间≤当日 且 Agent已领取未勾】→领取=勾选Agent已领取→读本页旁白表格+L4工单→产出L4生图提示词。\n"
     "④ 交付物=L4生图提示词（封面1+内页8，纯代码块），写入正文【生图提示词（定稿）】节，同时置状态已交付；用户手动执行生图。\n"
     "⑤ 修改意见写页尾✍️。")
@@ -327,13 +327,20 @@ def cmd_poll(today=None):
     if warn_review:
         ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_review)
         print(f'⚠️ {len(warn_review)}行待审核+已到期({ids}) → 自动化规则1未配置/未生效(条件须=待审核), 请查页面⚡')
-    warn_raw = query_all({'and': [
+    warn_pending = query_all({'and': [
         {'property': '状态', 'select': {'equals': '待产'}},
         {'property': '排产时间', 'date': {'on_or_before': today}},
         {'property': 'Agent已领取', 'checkbox': {'equals': False}}]})
-    if warn_raw:
-        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_raw)
-        print(f'⚠️ {len(warn_raw)}行待产+已到期({ids}) → 预处理(push)落后于排产计划')
+    if warn_pending:
+        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_pending)
+        print(f'⚠️ {len(warn_pending)}行待产+已到期({ids}) → 预处理(push)落后于排产计划')
+    # 已审核滞留诊断: 用户已裁决但排产时间未设/自动化未建 → 卡在已审核不进生产
+    warn_reviewed = query_all({'and': [
+        {'property': '状态', 'select': {'equals': '已审核'}},
+        {'property': 'Agent已领取', 'checkbox': {'equals': False}}]})
+    if warn_reviewed:
+        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_reviewed)
+        print(f'⚠️ {len(warn_reviewed)}行已审核滞留({ids}) → 设排产时间(自动化置已排产), 或检查⚡规则1')
     for pg in hits:
         pr = pg['properties']
         # 领取动作: 勾checkbox+置生产中 = 单次原子PATCH (竞态审查修复)
