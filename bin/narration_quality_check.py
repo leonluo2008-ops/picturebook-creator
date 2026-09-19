@@ -202,7 +202,8 @@ def title_check(books_titles):
     for word, titles in books_titles.items():
         w = word.strip().lower()
         for i, t in enumerate(titles, 1):
-            if t and w not in t.lower():
+            # 词边界匹配: 短词(me/go/a)不得被子串误放行(如 me 匹配进 time)
+            if t and not re.search(rf'\b{re.escape(w)}\b', t.lower()):
                 problems.append(f"{word} 备选{i}《{t}》未显示核心词 → 重写该条(避撞名=换中文侧结构, 不隐去英文词)")
     return problems
 
