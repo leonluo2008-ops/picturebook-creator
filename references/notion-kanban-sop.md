@@ -3,9 +3,9 @@
 > **定位**：Notion《绘本排产中控台》= 排产与内容确认的唯一事实源；本仓 = 创作规则与工具链唯一事实源。两边用「排产号」关联。
 > **工具**：`bin/notion_kanban.py`（import/push/poll/deliver/migrate/status）。凭证走 `~/.hermes/.env` 的 NOTION_API_KEY，Id 硬编码只在脚本 CONFIG 区。
 
-## 一、台账 DB 结构（15 属性）
+## 一、台账 DB 结构（18 属性）
 
-排产号(title) / 核心词 / 月 / 词型 / 绑定形态 / 链形 / 画风 / 标题备选①②③ / 简介备选①②③④（以上 rich_text）｜状态(select) / 排产时间(date) / Agent已领取(checkbox) / 备注。
+排产号(title) / 核心词 / 月 / 词型 / 绑定形态 / 链形 / 画风（7 基础 rich_text/title）+ 标题备选①②③ / 简介备选①②③④（7 候选 rich_text）+ 状态(select) / 排产时间(date) / Agent已领取(checkbox) / 备注（4 流控列）。
 
 **信息唯一性**：候选全文进属性列（标题备选①②③ / 简介备选①②③④），用户改写【选定标题】【选定简介】两格=确认；**正文永不存放标题/简介**（防双账本失同步）。
 
@@ -26,8 +26,9 @@
 python3 bin/gen_schedule.py ...
 # 1. 导入300册(属性行, 断点续传: 已存在排产号自动跳过, 0.35s/行限速)
 python3 bin/notion_kanban.py import data/production/排产台账-3个月300册.csv
-# 2. L1-L3完成后: 三件套md → 六段页面 + 备选列回填(重复执行安全, 幂等)
-python3 bin/notion_kanban.py push data/production/测试批B001-B005-标题简介旁白.md
+# 2. L1-L3完成后: 三件套md → 六段页面 + 备选列回填（默认读 排产台账-3个月300册.csv 补元数据, 可传第2参指定CSV）
+#    重推安全: 未交付页可安全重推(先append后归档); 已交付页(含生图提示词节)拒绝重建, 确认覆盖加 --force
+python3 bin/notion_kanban.py push data/production/测试批B001-B005-标题简介旁白.md [台账.csv]
 # 3. 每日领料: 筛[已排产+排产时间≤今日+未勾] → 自动勾选+置生产中+打印工单
 python3 bin/notion_kanban.py poll [YYYY-MM-DD]
 # 4. L4完成后交付: 提示词9行(封面1+内页8) → 页面「生图提示词(定稿)」节 + 状态置已交付

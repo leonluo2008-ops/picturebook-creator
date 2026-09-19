@@ -74,13 +74,17 @@ def ensure_schema():
     for name in RICH_NEW:
         if name not in props: patch[name] = {'rich_text': {}}
     if props.get('状态', {}).get('type') == 'select':
-        have = [o['name'] for o in props['状态']['select'].get('options', [])]
-        if have != [o['name'] for o in STATUS_OPTS]:
-            patch['状态'] = {'select': {'options': STATUS_OPTS}}
+        have = {o['name'] for o in props['状态']['select'].get('options', [])}
+        missing = [o for o in STATUS_OPTS if o['name'] not in have]
+        if missing:                      # 只补缺, 不删用户自定义选项(审查NIT修复)
+            patch['状态'] = {'select': {'options': STATUS_OPTS + [
+                o for o in props['状态']['select'].get('options', []) if o['name'] not in {x['name'] for x in STATUS_OPTS}]}}
+    for col in ('状态', '排产时间', 'Agent已领取'):
+        if col not in props:
+            print(f'⚠️ 缺关键列「{col}」— 请先跑 migrate 或手工补建')
     if patch:
         r = api('PATCH', f'databases/{DB_ID}', {'properties': patch})
         if 'error' in r: sys.exit(f'schema补建失败: {r}')
-    return {n: props.get(n, {}).get('type', '新建') for n in list(props.keys()) + [x for x in RICH_NEW if x not in props]}
 
 def migrate():
     """选定标题/选定简介: select→rich_text (300册下拉爆炸修正)
@@ -142,13 +146,13 @@ def parse_books(md_path):
         if s.startswith('**简介备选') or s.startswith('**标题备选') or s.startswith('**双语旁白**'):
             continue
         im = s.rsplit('（方向', 1)
-        if re.match(r'^\d+\.\s', s) and len(im) == 2 and not cur['rows'] and not cur['titles']:
-            pass
         if re.match(r'^\d+\.\s', s) and len(im) == 2 and cur['titles'] and len(cur['intros']) < 4 \
            and not s.startswith('《'):
-            cur['intros'].append(im[0][2:].strip()); continue
+            cur['intros'].append(re.sub(r'^\d+\.\s*', '', im[0]).strip()); continue
         rm = re.match(r'^\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$', s)
         if rm and rm[1] != '序号':
+            if s.count('|') != 4:
+                sys.exit(f'{cur["id"]} 旁白第{rm[1]}句含单元格内竖线, 数据损坏风险: {s[:50]}')
             cur['rows'].append((rm[1], rm[2], rm[3])); continue
         if s.startswith('**L4 工单**：'):
             cur['l4'] = s.replace('**L4 工单**：', '').strip()
@@ -194,11 +198,19 @@ def page_children(b):
 def replace_body(page_id, children):
     old = api('GET', f'blocks/{page_id}/children', ver='2026-03-11')
     if 'error' in old: sys.exit(f'读children失败: {old}')
+    # 守卫: 已含交付物/需保留块的页面拒绝无意识重建 (--force 显式放行)
+    protect = ('生图提示词（定稿）',)
     for b in old['results']:
-        r = api('PATCH', f"blocks/{b['id']}", {'archived': True})
-        if 'error' in r: sys.exit(f'归档块失败: {r}')
+        t = b.get('type', '')
+        txt = ''.join(x['plain_text'] for x in b.get(t, {}).get('rich_text', []))
+        if any(k in txt for k in protect) and '--force' not in sys.argv:
+            sys.exit(f'页面含「{protect[0]}」(已交付正文)。push 会销毁它; 确认重建加 --force')
+    # 先 append 新块, 成功后才归档旧块 (append 失败页面不空)
     r = api('PATCH', f'blocks/{page_id}/children', {'children': children})
-    if 'error' in r: sys.exit(f'append失败: {r}')
+    if 'error' in r: sys.exit(f'append失败(旧块未动, 页面无损): {r}')
+    for b in old['results']:
+        api('PATCH', f"blocks/{b['id']}", {'archived': True})
+        time.sleep(0.2)
     return len(r['results'])
 
 def book_props(b, csvrow):
@@ -215,16 +227,19 @@ def book_props(b, csvrow):
         p[f'简介备选{"①②③④"[i]}'] = rt(s)
     return p
 
-def cmd_push(md_path):
+def cmd_push(md_path, csv_path=None):
     ensure_schema()
     csvrows = {}
-    with open(REPO / 'data/production/排产台账-3个月300册.csv', encoding='utf-8-sig') as f:
+    csv_file = Path(csv_path) if csv_path else REPO / 'data/production/排产台账-3个月300册.csv'
+    with open(csv_file, encoding='utf-8-sig') as f:
         for row in csv.DictReader(f):
             csvrows[row['排产号']] = row
     books = parse_books(md_path)
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     for b in books:
         row = csvrows.get(b['id'], {})
+        if not row:
+            print(f"⚠️ {b['id']} 不在 {csv_file.name}: 月/词型/画风等列留空, 状态落待产")
         props = book_props(b, row)
         if b['id'] in pages:
             pid = pages[b['id']]['id']
@@ -284,15 +299,23 @@ def cmd_poll(today=None):
         {'property': 'Agent已领取', 'checkbox': {'equals': False}}]})
     for pg in hits:
         pr = pg['properties']
-        # 领取动作: 勾checkbox + 兜底置生产中(自动化缺席时)
-        r1 = api('PATCH', f"pages/{pg['id']}", {'properties': {'Agent已领取': {'checkbox': True}}})
-        if 'error' in r1: sys.exit(f"勾选失败: {r1}")
-        if plain(pr.get('状态')) != '已领取（生产中）':
-            api('PATCH', f"pages/{pg['id']}", {'properties': {'状态': {'select': {'name': '已领取（生产中）'}}}})
+        # 领取动作: 勾checkbox+置生产中 = 单次原子PATCH (竞态审查修复)
+        r1 = api('PATCH', f"pages/{pg['id']}", {'properties': {
+            'Agent已领取': {'checkbox': True},
+            '状态': {'select': {'name': '已领取（生产中）'}}}})
+        if 'error' in r1: sys.exit(f"领取失败: {r1}")
         print(f"工单 {plain(pr.get('排产号'))} | 词={plain(pr.get('核心词'))} | "
               f"标题={plain(pr.get('选定标题')) or '(未选!)'} | 简介={plain(pr.get('选定简介')) or '(未选!)'} | {pg['url']}")
     if warn:
         print(f'⚠️ {len(warn)}行已设排产时间但状态仍是待产 → Notion自动化未配置, 请在页面⚡里建规则')
+    # 自愈通道: 历史竞态/中断造成的[已勾但状态=已排产]行, 纠正状态
+    stuck = query_all({'and': [
+        {'property': '状态', 'select': {'equals': '已排产'}},
+        {'property': 'Agent已领取', 'checkbox': {'equals': True}}]})
+    for pg in stuck:
+        r = api('PATCH', f"pages/{pg['id']}", {'properties': {'状态': {'select': {'name': '已领取（生产中）'}}}})
+        if 'id' in r:
+            print(f"自愈: {plain(pg['properties'].get('排产号'))} 已勾未置生产中 → 已纠正")
     print(f'poll完成: 领取{len(hits)}单 (截止{today})')
 
 def cmd_deliver(book_id, prompts_path):
@@ -300,7 +323,7 @@ def cmd_deliver(book_id, prompts_path):
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     if book_id not in pages: sys.exit(f'找不到 {book_id}')
     pid = pages[book_id]['id']
-    if len(prompts) not in (0, 9) and '--force' not in sys.argv:
+    if len(prompts) != 9 and '--force' not in sys.argv:
         sys.exit(f'提示词{len(prompts)}条≠9(封面1+内页8), 确认无误加 --force')
     children = [{'object': 'block', 'type': 'heading_2', 'heading_2': {'rich_text': [
         {'text': {'content': '生图提示词（定稿）'}}]}}]
@@ -331,7 +354,7 @@ def cmd_status():
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'status'
     if cmd == 'migrate': migrate()
-    elif cmd == 'push': cmd_push(sys.argv[2])
+    elif cmd == 'push': cmd_push(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
     elif cmd == 'import': cmd_import(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else None)
     elif cmd == 'poll': cmd_poll(sys.argv[2] if len(sys.argv) > 2 else None)
     elif cmd == 'deliver': cmd_deliver(sys.argv[2], sys.argv[3])
