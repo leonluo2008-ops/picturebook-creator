@@ -63,7 +63,7 @@ def plain(prop):
 RICH_NEW = ['月', '词型', '绑定形态', '链形', '画风',
             '标题备选①', '标题备选②', '标题备选③',
             '简介备选①', '简介备选②', '简介备选③', '简介备选④']
-STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '待审核', 'color': 'purple'}, {'name': '已审核', 'color': 'orange'}, {'name': '已排产', 'color': 'blue'},
+STATUS_OPTS = [{'name': '待产', 'color': 'gray'}, {'name': '待预处理', 'color': 'pink'}, {'name': '待审核', 'color': 'purple'}, {'name': '已审核', 'color': 'orange'}, {'name': '已排产', 'color': 'blue'},
                {'name': '已领取（生产中）', 'color': 'yellow'}, {'name': '已交付', 'color': 'green'},
                {'name': '弃用', 'color': 'red'}]
 VALID_STATES = tuple(o['name'] for o in STATUS_OPTS)   # 状态白名单单源(审查NIT)
@@ -78,8 +78,15 @@ def ensure_schema():
         have = {o['name'] for o in props['状态']['select'].get('options', [])}
         missing = [o for o in STATUS_OPTS if o['name'] not in have]
         if missing:                      # 只补缺, 不删用户自定义选项(审查NIT修复)
-            patch['状态'] = {'select': {'options': STATUS_OPTS + [
-                o for o in props['状态']['select'].get('options', []) if o['name'] not in {x['name'] for x in STATUS_OPTS}]}}
+            # 存量选项原样回写(带id/color, 防「Cannot update color」400——09-20实测);
+            # 新选项才用代码声明色; 线上自定义选项保持原样
+            online_by_name = {o['name']: o for o in props['状态']['select'].get('options', [])}
+            merged = [online_by_name.get(o['name'], o) for o in STATUS_OPTS]
+            merged += [o for o in props['状态']['select'].get('options', [])
+                       if o['name'] not in {x['name'] for x in STATUS_OPTS}]
+            patch['状态'] = {'select': {'options': merged}}
+    if 'Agent预处理中' not in props:
+        patch['Agent预处理中'] = {'checkbox': {}}   # 预处理工单领取标记(审查SHOULD: checkbox列也要自动建)
     for col in ('状态', '排产时间', 'Agent已领取'):
         if col not in props:
             print(f'⚠️ 缺关键列「{col}」— 请先跑 migrate 或手工补建')
@@ -161,7 +168,7 @@ def parse_books(md_path):
 
 GUIDE = ("📖 本页使用规则（人与 Agent 共读）\n"
     "① 标题/简介唯一事实源=属性栏【选定标题/选定简介】；候选全文在【标题备选①②③/简介备选①②③④】；正文不存放标题简介（防双账本失同步）。\n"
-    "② 状态联动（派生视图，不手拉）：Agent push 预处理产物→待审核；用户审核裁决手动置已审核→自动化转已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
+    "② 状态联动（派生视图，不手拉）：用户置待预处理=下预处理工单，Agent领单创作push→待审核；批量push预处理产物→待审核；用户审核裁决手动置已审核→自动化转已排产；Agent勾Agent已领取→自动已领取（生产中）；Agent交付→已交付。\n"
     "③ Agent 领料协议：筛选【状态=已排产 且 排产时间≤当日 且 Agent已领取未勾】→领取=勾选Agent已领取→读本页旁白表格+L4工单→产出L4生图提示词。\n"
     "④ 交付物=L4生图提示词（封面1+内页8，纯代码块），写入正文【生图提示词（定稿）】节，同时置状态已交付；用户手动执行生图。\n"
     "⑤ 修改意见写页尾✍️。")
@@ -242,8 +249,15 @@ def book_props(b, is_new=False):
 
 def cmd_push(md_path):
     ensure_schema()
+    # ── 创作模型闸门(fail-closed, 09-10红线): md头部须标「创作模型:」且为Gemini/GPT系 ──
+    mhead = re.search(r'^创作模型[:：]\s*(.+)$', Path(md_path).read_text(encoding='utf-8'), re.M)
+    if not mhead:
+        sys.exit('缺「创作模型:」标注行 — 09-10红线要求三件套标注创作模型, 拒收')
+    if not re.match(r'(?i)\s*(gemini|gpt)', mhead.group(1)):
+        sys.exit(f'创作模型「{mhead.group(1).strip()}」非Gemini/GPT系 — 违反创作红线, 拒收')
     books = parse_books(md_path)
-    # ── 批量质量闸门(fail-closed): 标题备选核心词 + 开场句查重, 违规不落 Notion ──
+    if not books:
+        sys.exit('解析到0册 — md不匹配H2契约「## B00X · 词（链形）· 开场型：型」, 拒收(fail-closed)')
     from narration_quality_check import title_check, batch_check
     tc = title_check({b['word']: b['titles'] for b in books})
     if tc:
@@ -267,8 +281,10 @@ def cmd_push(md_path):
             pid = old['id']
             # 状态转移矩阵: 仅 待产→待审核 由 push 置; 其余状态不碰(状态权在用户/后续工段)
             # 元数据列(月/词型/绑定形态/画风)不在 props 里, 天然不碰=Notion单源
-            if old_st == '待产':
+            if old_st in ('待产', '待预处理'):
                 props['状态'] = {'select': {'name': '待审核'}}
+            if old_st == '待预处理':
+                props['Agent预处理中'] = {'checkbox': False}   # 领单勾随push清掉(审查SHOULD: 防勾永真污染)
             for col in ('选定标题', '选定简介', '排产时间', 'Agent已领取', '备注'):
                 props.pop(col, None)
             r = api('PATCH', f'pages/{pid}', {'properties': props})
@@ -311,6 +327,30 @@ def cmd_import(csv_path, limit=None):
         time.sleep(0.35)
     print(f'导入完成: 新增{done} 跳过(已存在){skip} / 总{len(rows)}行')
 
+def cmd_preprocess(mode='--list'):
+    """预处理工单(消息驱动, 无cron): 状态=待预处理 即工单。
+    --list: 列工单; --claim: 领单=原子勾「Agent预处理中」(防连发消息/双机重复创作)。
+    领后创作(创作模型红线: Gemini/GPT系子agent)→push(自动翻待审核+清勾)。仅本机执行(无CAS, SOP约定)。"""
+    ensure_schema()
+    flt = {'property': '状态', 'select': {'equals': '待预处理'}}
+    if mode == '--claim':
+        flt = {'and': [flt, {'property': 'Agent预处理中', 'checkbox': {'equals': False}}]}
+    rows = query_all(flt)
+    if not rows:
+        print('无预处理工单' + ('(或已被领取)' if mode == '--claim' else ''))
+        return
+    if mode == '--list':
+        for pg in rows:
+            pr = pg['properties']
+            claim = '🔒已领' if plain(pr.get('Agent预处理中')) in ('True', 'true', '1') or pr.get('Agent预处理中', {}).get('checkbox') else '待领'
+            print(f"工单 {plain(pr.get('排产号'))} | 词={plain(pr.get('核心词'))} | 链形={plain(pr.get('链形'))} | 画风={plain(pr.get('画风'))} | {claim} | {pg['url']}")
+        return
+    for pg in rows:   # --claim
+        pr = pg['properties']
+        r1 = api('PATCH', f"pages/{pg['id']}", {'properties': {'Agent预处理中': {'checkbox': True}}})
+        if 'error' in r1: sys.exit(f"领单失败: {r1}")
+        print(f"已领单 {plain(pr.get('排产号'))} | 词={plain(pr.get('核心词'))} | 链形={plain(pr.get('链形'))} | 画风={plain(pr.get('画风'))}")
+
 def cmd_poll(today=None):
     today = today or datetime.date.today().isoformat()
     flt = {'and': [
@@ -340,6 +380,28 @@ def cmd_poll(today=None):
     if warn_reviewed:
         ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_reviewed)
         print(f'⚠️ {len(warn_reviewed)}行已审核滞留({ids}) → 设排产时间(自动化置已排产), 或检查⚡规则1')
+    # 跳过预处理回流诊断(审查SHOULD): 空「标题备选①」+生产态=疑似手滑跳过预处理
+    for st in ('已审核', '已排产'):
+        bad = query_all({'and': [
+            {'property': '状态', 'select': {'equals': st}},
+            {'property': '标题备选①', 'rich_text': {'is_empty': True}}]})
+        if bad:
+            ids = ','.join(plain(p['properties'].get('排产号')) for p in bad)
+            print(f'⚠️ {len(bad)}行{st}但备选列空({ids}) → 疑似跳过预处理, 请人工置回待预处理')
+    # 待预处理滞留诊断(审查NIT分两态): 未勾=工单没人领; 已勾+排产时间已过=创作会话卡死
+    warn_pre_idle = query_all({'and': [
+        {'property': '状态', 'select': {'equals': '待预处理'}},
+        {'property': 'Agent预处理中', 'checkbox': {'equals': False}}]})
+    if warn_pre_idle:
+        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_pre_idle)
+        print(f'⏳ {len(warn_pre_idle)}行待预处理待领({ids}) → 给Agent发「处理待预处理工单」')
+    warn_pre_stuck = query_all({'and': [
+        {'property': '状态', 'select': {'equals': '待预处理'}},
+        {'property': 'Agent预处理中', 'checkbox': {'equals': True}},
+        {'property': '排产时间', 'date': {'on_or_before': today}}]})
+    if warn_pre_stuck:
+        ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_pre_stuck)
+        print(f'⚠️ {len(warn_pre_stuck)}行已领但滞留({ids}) → 创作会话中断, 重发「处理待预处理工单」或人工检查')
     for pg in hits:
         pr = pg['properties']
         # 领取动作: 勾checkbox+置生产中 = 单次原子PATCH (竞态审查修复)
@@ -449,6 +511,10 @@ if __name__ == '__main__':
     elif cmd == 'push': cmd_push(sys.argv[2])
     elif cmd == 'import': cmd_import(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else None)
     elif cmd == 'poll': cmd_poll(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif cmd == 'preprocess':
+        cmd_preprocess(sys.argv[2] if len(sys.argv) > 2 else '--list')
+        if len(sys.argv) > 2 and sys.argv[2] == '--claim' and len(sys.argv) > 3:
+            sys.exit(0)   # 领单后创作由会话层接手, CLI到此为止
     elif cmd == 'deliver': cmd_deliver(sys.argv[2], sys.argv[3])
     elif cmd == 'status': cmd_status()
     else: sys.exit('用法: migrate|push <md>|import <csv> [limit]|poll [date]|deliver <排产号> <prompts>|status')
