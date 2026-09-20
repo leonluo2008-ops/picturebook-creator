@@ -249,10 +249,12 @@ def book_props(b, is_new=False):
 
 def cmd_push(md_path):
     ensure_schema()
-    # ── 创作模型闸门(fail-closed, 09-10红线): md头部须标「创作模型:」且为Gemini/GPT系 ──
-    mhead = re.search(r'^创作模型[:：]\s*(.+)$', Path(md_path).read_text(encoding='utf-8'), re.M)
+    # ── 创作模型闸门(fail-closed, 09-10红线): md【头部】须标「创作模型:」且为Gemini/GPT系 ──
+    # 只扫首个H2之前(审查SHOULD: 全文扫描可被正文引用行绕过=fail-open)
+    raw = Path(md_path).read_text(encoding='utf-8')
+    mhead = re.search(r'^创作模型[:：]\s*(.+)$', raw.split('\n## ', 1)[0], re.M)
     if not mhead:
-        sys.exit('缺「创作模型:」标注行 — 09-10红线要求三件套标注创作模型, 拒收')
+        sys.exit('头部缺「创作模型:」标注行 — 09-10红线要求三件套标注创作模型, 拒收')
     if not re.match(r'(?i)\s*(gemini|gpt)', mhead.group(1)):
         sys.exit(f'创作模型「{mhead.group(1).strip()}」非Gemini/GPT系 — 违反创作红线, 拒收')
     books = parse_books(md_path)
@@ -342,7 +344,7 @@ def cmd_preprocess(mode='--list'):
     if mode == '--list':
         for pg in rows:
             pr = pg['properties']
-            claim = '🔒已领' if plain(pr.get('Agent预处理中')) in ('True', 'true', '1') or pr.get('Agent预处理中', {}).get('checkbox') else '待领'
+            claim = '🔒已领' if pr.get('Agent预处理中', {}).get('checkbox') else '待领'
             print(f"工单 {plain(pr.get('排产号'))} | 词={plain(pr.get('核心词'))} | 链形={plain(pr.get('链形'))} | 画风={plain(pr.get('画风'))} | {claim} | {pg['url']}")
         return
     for pg in rows:   # --claim
@@ -395,10 +397,15 @@ def cmd_poll(today=None):
     if warn_pre_idle:
         ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_pre_idle)
         print(f'⏳ {len(warn_pre_idle)}行待预处理待领({ids}) → 给Agent发「处理待预处理工单」')
-    warn_pre_stuck = query_all({'and': [
-        {'property': '状态', 'select': {'equals': '待预处理'}},
-        {'property': 'Agent预处理中', 'checkbox': {'equals': True}},
-        {'property': '排产时间', 'date': {'on_or_before': today}}]})
+    warn_pre_stuck = query_all({'or': [
+        {'and': [
+            {'property': '状态', 'select': {'equals': '待预处理'}},
+            {'property': 'Agent预处理中', 'checkbox': {'equals': True}},
+            {'property': '排产时间', 'date': {'is_empty': True}}]},
+        {'and': [
+            {'property': '状态', 'select': {'equals': '待预处理'}},
+            {'property': 'Agent预处理中', 'checkbox': {'equals': True}},
+            {'property': '排产时间', 'date': {'on_or_before': today}}]}]})
     if warn_pre_stuck:
         ids = ','.join(plain(p['properties'].get('排产号')) for p in warn_pre_stuck)
         print(f'⚠️ {len(warn_pre_stuck)}行已领但滞留({ids}) → 创作会话中断, 重发「处理待预处理工单」或人工检查')
@@ -513,8 +520,6 @@ if __name__ == '__main__':
     elif cmd == 'poll': cmd_poll(sys.argv[2] if len(sys.argv) > 2 else None)
     elif cmd == 'preprocess':
         cmd_preprocess(sys.argv[2] if len(sys.argv) > 2 else '--list')
-        if len(sys.argv) > 2 and sys.argv[2] == '--claim' and len(sys.argv) > 3:
-            sys.exit(0)   # 领单后创作由会话层接手, CLI到此为止
     elif cmd == 'deliver': cmd_deliver(sys.argv[2], sys.argv[3])
     elif cmd == 'status': cmd_status()
-    else: sys.exit('用法: migrate|push <md>|import <csv> [limit]|poll [date]|deliver <排产号> <prompts>|status')
+    else: sys.exit('用法: migrate|push <md>|import <csv> [limit]|poll [date]|preprocess --list|--claim|deliver <排产号> <prompts>|status')
