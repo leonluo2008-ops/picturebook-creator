@@ -12,7 +12,7 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 用户要一本书/一个单词的书 → 故事模式 或 领读模式（按既有流程）
 用户要一批书/排产/排程/台账/「这个词库都做一遍」 → 批量排产模式
   → 读 references/batch-scheduling.md，五步流程：排台账→领册→批量L1-L3→批量闸门→交付
-  → 批量闸门：batch_check 开场查重 + 标题三备选(每条含核心词,title_check) + 末句查重 + 链形查重（单册模式无此闸门）
+  → 批量闸门：batch_check 开场查重 + 标题三备选(每条含核心词,title_check) + 中文列绑定(每句「中文短语，英文词块」,binding_check) + 末句查重 + 链形查重（单册模式无此闸门）
   → 预处理工单（用户把素材置「待预处理」后来消息）→ preprocess --list/--claim 领单 → L1-L3（创作模型红线: Gemini/GPT系, md头部标「创作模型:」）→ push 翻待审核
   → 台账/审读/交付走 Notion 中控台时：读 references/notion-kanban-sop.md（import/push/poll/preprocess/deliver 命令 + 状态机联动 + API 坑清单）
 ```

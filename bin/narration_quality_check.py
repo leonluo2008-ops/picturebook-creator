@@ -214,6 +214,19 @@ def title_check(books_titles):
     return problems
 
 
+def binding_check(books_rows):
+    """中文列英文绑定检查(2026-09-20 B011-B018事故定版): 中文列=中文短语+英文核心词块挂末尾(领读机制本体, 锚·两列绑定范围澄清)。
+    books_rows = {word: [(en, cn), ...8句]}; 中文列任一句缺该册核心词字面(词边界) = 违规。"""
+    import re as _re
+    problems = []
+    for word, rows in books_rows.items():
+        for i, r in enumerate(rows, 1):
+            en, cn = (r[1], r[2]) if len(r) >= 3 else (r[0], r[1])
+            if not _re.search(r'(?i)(?<![A-Za-z])' + _re.escape(word) + r'(?![A-Za-z])', cn or ''):
+                problems.append(f"{word} 第{i}句中文列未绑定英文块: {cn}")
+    return problems
+
+
 def batch_check(books_first_rows, word_cn=None):
     """批量开场句查重(2026-09-18用户定版): books_first_rows = {word: (en_row1, cn_row1)}
     骨架归一默认接模块级 CN_MAP(中文同现率检查同源), word_cn 显式传入优先覆盖。

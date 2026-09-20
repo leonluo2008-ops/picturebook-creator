@@ -260,13 +260,16 @@ def cmd_push(md_path):
     books = parse_books(md_path)
     if not books:
         sys.exit('解析到0册 — md不匹配H2契约「## B00X · 词（链形）· 开场型：型」, 拒收(fail-closed)')
-    from narration_quality_check import title_check, batch_check
+    from narration_quality_check import title_check, batch_check, binding_check
     tc = title_check({b['word']: b['titles'] for b in books})
     if tc:
         sys.exit('标题备选闸门拦截:\n- ' + '\n- '.join(tc) + '\n(每条备选必须显示核心词, 修正 md 后重推)')
     bc = batch_check({b['word']: (b['rows'][0][1], b['rows'][0][2]) for b in books if b['rows']})
     if bc:
         sys.exit('开场句查重拦截:\n- ' + '\n- '.join(bc))
+    bind = binding_check({b['word']: b['rows'] for b in books if b['rows']})
+    if bind:
+        sys.exit('中文列绑定拦截(09-20事故闸门):\n- ' + '\n- '.join(bind) + '\n(中文列=中文短语+英文核心词块挂末尾, 修正 md 后重推)')
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     for b in books:
         old = pages.get(b['id'])
