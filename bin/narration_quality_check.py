@@ -216,14 +216,23 @@ def title_check(books_titles):
 
 def binding_check(books_rows):
     """中文列英文绑定检查(2026-09-20 B011-B018事故定版): 中文列=中文短语+英文核心词块挂末尾(领读机制本体, 锚·两列绑定范围澄清)。
-    books_rows = {word: [(en, cn), ...8句]}; 中文列任一句缺该册核心词字面(词边界) = 违规。"""
+    books_rows = {word: [(en, cn), ...8句] 或 [(序号, en, cn), ...]}; 两层检查:
+    ①中文列须含该册核心词字面(词边界) ②尾段英文块须为英文句的逐字连续子块(仅大小写可差)——禁意译改写。"""
     import re as _re
+    def _norm(t):
+        t = _re.sub(r'[^a-z0-9 ]', ' ', t.lower())
+        return _re.sub(r' +', ' ', t).strip()
     problems = []
     for word, rows in books_rows.items():
         for i, r in enumerate(rows, 1):
             en, cn = (r[1], r[2]) if len(r) >= 3 else (r[0], r[1])
             if not _re.search(r'(?i)(?<![A-Za-z])' + _re.escape(word) + r'(?![A-Za-z])', cn or ''):
                 problems.append(f"{word} 第{i}句中文列未绑定英文块: {cn}")
+                continue
+            mt = _re.search(r"([A-Za-z][A-Za-z0-9 ,.!?''\-]*)\s*$", cn or '')
+            tail = mt.group(1).strip() if mt else ''
+            if tail and _norm(tail) not in _norm(en):
+                problems.append(f"{word} 第{i}句绑定块非英文句逐字子块: 「{tail}」 ← EN: {en}")
     return problems
 
 

@@ -153,10 +153,13 @@ def parse_books(md_path):
             cur['titles'].append(tm[1]); continue
         if s.startswith('**简介备选') or s.startswith('**标题备选') or s.startswith('**双语旁白**'):
             continue
-        im = s.rsplit('（方向', 1)
-        if re.match(r'^\d+\.\s', s) and len(im) == 2 and cur['titles'] and len(cur['intros']) < 4 \
-           and not s.startswith('《'):
-            cur['intros'].append(re.sub(r'^\d+\.\s*', '', im[0]).strip()); continue
+        # 简介备选: 兼容两种形态——旧「1. xxx（方向一：…）」尾注式 与 新「1. xxx」裸句式
+        # (09-20事故: 新裸句式整段被丢, intros=0 静默入 Notion 空列)
+        if re.match(r'^\d+\.\s', s) and cur['titles'] and len(cur['intros']) < 4 \
+           and not cur['rows'] and not s.startswith('《'):
+            body = re.sub(r'^\d+\.\s*', '', s)
+            body = re.split(r'（方向', body)[0].strip()
+            cur['intros'].append(body); continue
         rm = re.match(r'^\|\s*(\d+)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$', s)
         if rm and rm[1] != '序号':
             if s.count('|') != 4:
@@ -270,6 +273,9 @@ def cmd_push(md_path):
     bind = binding_check({b['word']: b['rows'] for b in books if b['rows']})
     if bind:
         sys.exit('中文列绑定拦截(09-20事故闸门):\n- ' + '\n- '.join(bind) + '\n(中文列=中文短语+英文核心词块挂末尾, 修正 md 后重推)')
+    for b in books:   # 三件套完整性(09-20: intros解析丢失曾静默入空列, fail-closed)
+        if len(b['titles']) < 3 or len(b['intros']) < 3 or len(b['rows']) != 8:
+            sys.exit(f"{b['id']} 三件套不完整: 标题{len(b['titles'])}/简介{len(b['intros'])}/旁白{len(b['rows'])} — 须≥3/≥3/=8, 拒收")
     pages = {plain(p['properties'].get('排产号')): p for p in query_all(None)}
     for b in books:
         old = pages.get(b['id'])
