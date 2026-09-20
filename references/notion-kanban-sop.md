@@ -71,6 +71,7 @@ python3 bin/notion_kanban.py preprocess --claim
 # 2b. 批量排产模式: 三件套md → 六段页面 + 备选列回填 + **状态待产→待审核(Agent置位,=预处理完成标志)**
 #     md头部须有「创作模型: gemini-3.6-flash」行(创作红线闸门, 国产模型拒收); 双机约定: preprocess仅本机执行
 #    push 只写 md 来源字段(核心词/链形/备选/旁白); 月/词型/绑定形态/画风等元数据单源=Notion属性栏, 无CSV参数
+#    push 写路径闸门(全绿才落库): title_check+batch_check+binding_check+style_check+ending_check — 违规整批 exit=1
 #    重推安全: 未交付页可安全重推(先append后归档); 已交付页(含生图提示词节)拒绝重建, 确认覆盖加 --force
 python3 bin/notion_kanban.py push <三件套.md>
 # 3. 每日领料: 筛[已排产+排产时间≤今日+未勾] → 自动勾选+置生产中+打印工单

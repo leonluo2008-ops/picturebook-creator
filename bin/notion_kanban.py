@@ -216,18 +216,28 @@ def replace_body(page_id, children):
         txt = ''.join(x['plain_text'] for x in b.get(t, {}).get('rich_text', []))
         if t == 'heading_2' and txt.strip() == '生图提示词（定稿）' and '--force' not in sys.argv:
             sys.exit(f'页面含「生图提示词（定稿）」交付物标题块。push 会销毁它; 确认重建加 --force')
-    # 先保住用户写在页尾的✍️修改意见(重推不销毁, 审查SHOULD修复), 拼到新块末尾
+    # 先保住用户写在✍️callout里的修改意见(重推不销毁; 2026-09-20修双bug fail-open:
+    # bug1 旧条件要求文本含「修改意见」四字→用户意见在占位框里不含该字样=捕获不到;
+    # bug2 拼接判断json.dumps被新块自带H2标题「✍️ 修改意见」恒短路=永不拼接)
     old_yijian = []
     for b in old['results']:
-        t = b.get('type', '')
-        txt = ''.join(x['plain_text'] for x in b.get(t, {}).get('rich_text', []))
-        if t == 'callout' and '修改意见' in txt and '本页使用规则' not in txt:
-            old_yijian.append(txt)
-    if old_yijian and not any('修改意见' in json.dumps(c, ensure_ascii=False) for c in children):
-        children = children + [{'object': 'block', 'type': 'callout', 'callout': {
-            'rich_text': [{'text': {'content': '\n\n'.join(old_yijian)}}],
-            'icon': {'type': 'emoji', 'emoji': '✍️'}}}]
-        print(f'  (保留旧✍️修改意见{len(old_yijian)}条)')
+        if b.get('type') != 'callout':
+            continue
+        txt = ''.join(x['plain_text'] for x in b['callout'].get('rich_text', []))
+        if '本页使用规则' in txt:      # 📖使用规则callout(结构块)
+            continue
+        if txt.strip() and txt.strip() != '（无）':   # 非空占位=用户真写了意见
+            old_yijian.append(txt.strip())
+    if old_yijian:
+        # 比对新块的callout文本(不是json.dumps全量——H2标题会短路), 旧意见已在则不重复拼
+        new_callout_txts = [''.join(x['plain_text'] for x in c['callout'].get('rich_text', []))
+                            for c in children if c.get('type') == 'callout']
+        lost = [y for y in old_yijian if not any(y in nc for nc in new_callout_txts)]
+        if lost:
+            children = children + [{'object': 'block', 'type': 'callout', 'callout': {
+                'rich_text': [{'text': {'content': '\n\n'.join(lost)}}],
+                'icon': {'type': 'emoji', 'emoji': '✍️'}}}]
+            print(f'  (保留旧✍️修改意见{len(lost)}条)')
     # 先 append 新块, 成功后才归档旧块 (append 失败页面不空)
     r = api('PATCH', f'blocks/{page_id}/children', {'children': children})
     if 'error' in r: sys.exit(f'append失败(旧块未动, 页面无损): {r}')
@@ -263,7 +273,7 @@ def cmd_push(md_path):
     books = parse_books(md_path)
     if not books:
         sys.exit('解析到0册 — md不匹配H2契约「## B00X · 词（链形）· 开场型：型」, 拒收(fail-closed)')
-    from narration_quality_check import title_check, batch_check, binding_check
+    from narration_quality_check import title_check, batch_check, binding_check, style_check, ending_check
     tc = title_check({b['word']: b['titles'] for b in books})
     if tc:
         sys.exit('标题备选闸门拦截:\n- ' + '\n- '.join(tc) + '\n(每条备选必须显示核心词, 修正 md 后重推)')
@@ -271,8 +281,15 @@ def cmd_push(md_path):
     if bc:
         sys.exit('开场句查重拦截:\n- ' + '\n- '.join(bc))
     bind = binding_check({b['word']: b['rows'] for b in books if b['rows']})
+    sc = style_check({b['word']: b['rows'] for b in books if b['rows']})
+    ec = ending_check({b['word']: b['rows'][-1][2] if len(b['rows'][-1]) > 2 else b['rows'][-1][1]
+                       for b in books if b['rows']})
     if bind:
         sys.exit('中文列绑定拦截(09-20事故闸门):\n- ' + '\n- '.join(bind) + '\n(中文列=中文短语+英文核心词块挂末尾, 修正 md 后重推)')
+    if sc:
+        sys.exit('同书句式同构拦截(style_check 09-20闸门):\n- ' + '\n- '.join(f'{w}: {d}' for w, d in sc) + '\n(重写该册旁白: 换主语/换句式开头, 再重推)')
+    if ec:
+        sys.exit('末句收尾型拦截(ending_check 09-20闸门):\n- ' + '\n- '.join(d for _, d in ec) + '\n(同批各册末句收尾型须互异: 归位/否定/互动/情感轮换)')
     for b in books:   # 三件套完整性(09-20: intros解析丢失曾静默入空列, fail-closed)
         if len(b['titles']) < 3 or len(b['intros']) < 3 or len(b['rows']) != 8:
             sys.exit(f"{b['id']} 三件套不完整: 标题{len(b['titles'])}/简介{len(b['intros'])}/旁白{len(b['rows'])} — 须≥3/≥3/=8, 拒收")

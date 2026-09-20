@@ -258,6 +258,73 @@ def batch_check(books_first_rows, word_cn=None):
     return problems
 
 
+def style_check(books_rows):
+    """同书句式同构闸门(2026-09-20 B011-B018事故定版): books_rows = {word: [(en, cn), ...8]}
+    双通道: 主通道=中文短语(去英文绑定尾段)句首2字签名覆盖>=6/8行 → 违规(B013「妈妈」8连/B018「爸爸」7连病灶);
+           辅通道=cn_skeleton归一后连续>=3行同骨架(跳过退化骨架「□」/长度<=2——B011短短语全归一成□会误报,子agent实锤)。
+    边界: 问句行(中文短语以?/？结尾)豁免主通道; 纯中文短语<=4字跳过全部检查。
+    违规清单返回 [(word, desc)], 空列表=全过。"""
+    problems = []
+    for word, rows in (books_rows or {}).items():
+        phrases = []
+        for r in rows:
+            en, cn = (r[1], r[2]) if len(r) >= 3 else (r[0], r[1])
+            # 去掉英文绑定尾段: 取最后一个中文逗号/问叹号前的中文部分
+            m = re.match(r"^(.*?)[，,]", cn)
+            ph = m.group(1).strip() if m else cn.strip()
+            if re.search(r"[?？!！]\s*$", ph):
+                phrases.append(("?", ph))
+                continue
+            phrases.append(("ok", ph))
+        # 主通道: 句首2字签名
+        sigs = {}
+        for kind, ph in phrases:
+            if kind == "?" or len(ph) <= 4:
+                continue
+            sigs.setdefault(ph[:2], []).append(ph)
+        for sig, lst in sigs.items():
+            if len(lst) >= 6:
+                problems.append((word, f"句首签名「{sig}」覆盖{len(lst)}/8行(>=6), 同书句式同构"))
+                break
+        # 辅通道: 连续>=3同骨架(跳过退化)
+        sks = []
+        for kind, ph in phrases:
+            if kind == "?" or len(ph) <= 4:
+                sks.append(None)
+                continue
+            sk = cn_skeleton(ph)
+            sks.append(sk if sk and sk != "□" and len(sk) > 2 else None)
+        run = 1
+        for i in range(1, len(sks)):
+            if sks[i] and sks[i-1] and sks[i] == sks[i-1]:
+                run += 1
+                if run >= 3:
+                    problems.append((word, f"row{i-1}-row{i+1} 连续{run}行同骨架「{sks[i]}」"))
+                    break
+            else:
+                run = 1
+    return problems
+
+
+_ENDING_REST = ("睡", "休", "眠", "晚安", "停")
+
+def ending_check(books_last):
+    """同批末句收尾型闸门(2026-09-20定版): books_last = {word: 末句中文列全文}
+    同批 >=2 册末句中文短语含归位静止字根(睡/休/眠/晚安/停) → 违规(B012/B016/B017 三连病灶)。
+    设计取向: 只拦最粗的静止类扎堆(误报率最低); 更细同型靠人工终检。违规清单返回, 空列表=全过。"""
+    problems = []
+    hits = []
+    for word, last in (books_last or {}).items():
+        m = re.match(r"^(.*?)[，,]", last or "")
+        ph = (m.group(1) if m else (last or "")).strip()
+        if any(k in ph for k in _ENDING_REST):
+            hits.append((word, ph[:20]))
+    if len(hits) >= 2:
+        detail = "、".join(f"{w}「{p}」" for w, p in hits)
+        problems.append(("BATCH", f"同批{len(hits)}册末句归位静止型(≥2): {detail}"))
+    return problems
+
+
 def main():
     args = sys.argv[1:]
     if args and args[0] == '--titles':     # 标题备选闸门CLI: --titles '<json: {word:[备选...]}>' 或 @file.json
