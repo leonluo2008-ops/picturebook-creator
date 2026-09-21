@@ -135,7 +135,7 @@ def migrate():
     print(f'迁移完成: {len(val)} 行值保留 {val if val else "(无已选值)"}; 两列均 rich_text')
 
 # ---- md 解析 ----
-H2_RE = re.compile(r'^## (B\d{3}) · (\S+)（(.+?)）· 开场型：(.+)$')
+H2_RE = re.compile(r'^## (B\d{3}) · (.+?)（(.+?)）· 开场型：(.+)$')   # 词用非贪婪: 支持含空格核心词(Santa Claus/good-bye)
 
 def parse_books(md_path):
     text = Path(md_path).read_text(encoding='utf-8')

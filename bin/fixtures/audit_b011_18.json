@@ -1,0 +1,290 @@
+{
+  "B011": {
+    "narration": [
+      [
+        "MAN! A tall man!",
+        "高高的男人，a tall man！"
+      ],
+      [
+        "Here comes a man.",
+        "男人走过来，a man。"
+      ],
+      [
+        "The man walks over the bridge.",
+        "走过小桥，the man。"
+      ],
+      [
+        "The man climbs up the hill.",
+        "爬上山坡，the man。"
+      ],
+      [
+        "Who is over there? The man!",
+        "那边是谁呀，the man？"
+      ],
+      [
+        "The man walks into the garden.",
+        "走进花园，the man。"
+      ],
+      [
+        "The man walks past a tree.",
+        "走过大树，the man。"
+      ],
+      [
+        "The man is home!",
+        "到家啦，the man！"
+      ]
+    ]
+  },
+  "B012": {
+    "narration": [
+      [
+        "Clap clap! MEN!",
+        "啪啪拍手，MEN！"
+      ],
+      [
+        "Eyes see the men.",
+        "小眼睛看见男人们，the men。"
+      ],
+      [
+        "Tall men, short men!",
+        "高的矮的男人们，tall men, short men！"
+      ],
+      [
+        "Hear the men laugh.",
+        "听，男人们在笑，the men。"
+      ],
+      [
+        "The men wave at us.",
+        "男人们呀，向我们挥手，the men。"
+      ],
+      [
+        "The men say hello!",
+        "男人们说你好，the men！"
+      ],
+      [
+        "Walk with the men.",
+        "和男人们一起走，the men。"
+      ],
+      [
+        "Bye-bye, men!",
+        "男人们再见啦，men！"
+      ]
+    ]
+  },
+  "B013": {
+    "narration": [
+      [
+        "MOTHER! My mother!",
+        "妈妈来啦，mother！"
+      ],
+      [
+        "My mother cooks.",
+        "妈妈在做饭，mother。"
+      ],
+      [
+        "My mother sings.",
+        "妈妈会唱歌，mother。"
+      ],
+      [
+        "My mother dances.",
+        "妈妈会跳舞，mother。"
+      ],
+      [
+        "My mother reads.",
+        "妈妈会读书，mother。"
+      ],
+      [
+        "My mother draws.",
+        "妈妈会画画，mother。"
+      ],
+      [
+        "My mother swims.",
+        "妈妈会游泳，mother。"
+      ],
+      [
+        "My mother hugs me!",
+        "妈妈抱抱我，mother！"
+      ]
+    ]
+  },
+  "B014": {
+    "narration": [
+      [
+        "NAME! What's your name?",
+        "名字名字，你叫什么呀，name？"
+      ],
+      [
+        "My name is Ben!",
+        "我的名字叫本，my name！"
+      ],
+      [
+        "Her name is May!",
+        "她的名字叫梅，her name！"
+      ],
+      [
+        "His name is Joe!",
+        "他的名字叫乔，his name！"
+      ],
+      [
+        "The bear needs a name!",
+        "小熊要有名字啦，a name！"
+      ],
+      [
+        "The bear's name is Bob!",
+        "小熊的名字叫波布，bear's name！"
+      ],
+      [
+        "Say your name loud!",
+        "大声说出你的名字，your name！"
+      ],
+      [
+        "I love my name!",
+        "我爱我的名字，my name！"
+      ]
+    ]
+  },
+  "B015": {
+    "narration": [
+      [
+        "Good morning! I start my picture.",
+        "早上啦，我开始画画，my picture！"
+      ],
+      [
+        "At noon, my picture has a big sun.",
+        "中午，画上有个大太阳，my picture。"
+      ],
+      [
+        "In the afternoon, my picture has a tree!",
+        "下午，画上有大树，the picture！"
+      ],
+      [
+        "In the evening, my picture has a house.",
+        "晚上，画上有小房子，the picture。"
+      ],
+      [
+        "Now my picture is colorful!",
+        "画变得五彩缤纷，my picture！"
+      ],
+      [
+        "My picture is done!",
+        "画完成啦，my picture！"
+      ],
+      [
+        "Who else is on my picture?",
+        "画上还有谁呀，my picture？"
+      ],
+      [
+        "Time to sleep, picture.",
+        "该睡觉啦，picture。"
+      ]
+    ]
+  },
+  "B016": {
+    "narration": [
+      [
+        "Is it a car?",
+        "是一辆小汽车吗，a car？"
+      ],
+      [
+        "Yes! It is a red car!",
+        "对啦，一辆红色小汽车，a red car！"
+      ],
+      [
+        "The car has four wheels.",
+        "小汽车有四个轮子，the car。"
+      ],
+      [
+        "The car goes vroom vroom!",
+        "小汽车嘟嘟开，the car！"
+      ],
+      [
+        "Who is in the car?",
+        "谁坐在小汽车里，the car？"
+      ],
+      [
+        "A driver is in the car.",
+        "司机坐在车里，the car。"
+      ],
+      [
+        "The car is fast!",
+        "小汽车跑得快，the car！"
+      ],
+      [
+        "The car stops.",
+        "车停了，car。"
+      ]
+    ]
+  },
+  "B017": {
+    "narration": [
+      [
+        "Ring! Here come the children!",
+        "铃响啦，孩子们来啦，the children！"
+      ],
+      [
+        "The children run to the slide.",
+        "孩子们跑向滑梯，the children。"
+      ],
+      [
+        "Up, up the children go!",
+        "孩子们爬呀爬，the children！"
+      ],
+      [
+        "Two children swing on the swing.",
+        "两个孩子荡秋千，two children！"
+      ],
+      [
+        "The children play on the seesaw.",
+        "孩子们玩跷跷板，the children。"
+      ],
+      [
+        "The children run a race now!",
+        "孩子们赛跑啦，the children！"
+      ],
+      [
+        "Who is the fastest of the children?",
+        "谁跑得最快呀，the children？"
+      ],
+      [
+        "The children rest now.",
+        "孩子们休息啦，children。"
+      ]
+    ]
+  },
+  "B018": {
+    "narration": [
+      [
+        "This is my father.",
+        "这是我的爸爸，my father。"
+      ],
+      [
+        "My father is tall.",
+        "爸爸高高的，my father。"
+      ],
+      [
+        "My father is taller than the door!",
+        "爸爸比门高，my father！"
+      ],
+      [
+        "My father is strong.",
+        "爸爸力气大，my father。"
+      ],
+      [
+        "My father can lift me up!",
+        "爸爸能举高我，my father！"
+      ],
+      [
+        "My father cooks.",
+        "爸爸会做饭，my father。"
+      ],
+      [
+        "My father drives.",
+        "爸爸会开车，my father。"
+      ],
+      [
+        "Is my father the strongest?",
+        "爸爸是不是最壮的，my father？"
+      ]
+    ]
+  }
+}

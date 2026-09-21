@@ -73,6 +73,7 @@ python3 bin/notion_kanban.py preprocess --claim
 #    push 只写 md 来源字段(核心词/链形/备选/旁白); 月/词型/绑定形态/画风等元数据单源=Notion属性栏, 无CSV参数
 #    push 写路径闸门(全绿才落库): title_check+batch_check+binding_check+style_check+ending_check — 违规整批 exit=1
 #    重推安全: 未交付页可安全重推(先append后归档); 已交付页(含生图提示词节)拒绝重建, 确认覆盖加 --force
+#    push 后必回读验证(0921 SOP定版): ①status 状态计数翻对 ②preprocess --list 清零 ③抽读册页属性(备选列回填+预处理勾已清)——写成功≠落库正确
 python3 bin/notion_kanban.py push <三件套.md>
 # 3. 每日领料: 筛[已排产+排产时间≤今日+未勾] → 自动勾选+置生产中+打印工单
 python3 bin/notion_kanban.py poll [YYYY-MM-DD]

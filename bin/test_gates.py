@@ -10,8 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from narration_quality_check import style_check, ending_check  # noqa: E402
 
-FIXTURE = Path("/tmp/audit_b011_18.json")      # 违规样本数据源（8册实况快照）
-FIXTURE_OK = Path("/tmp/audit_b006_10_endings.json")  # 合规末句样本
+FIXTURE = Path(__file__).parent / "fixtures" / "audit_b011_18.json"      # 违规样本数据源（8册实况快照, 仓内自持）
+FIXTURE_OK = Path(__file__).parent / "fixtures" / "audit_b006_10_endings.json"  # 合规末句样本（仓内自持）
 
 
 def main():
