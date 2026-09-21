@@ -262,14 +262,17 @@ def book_props(b, is_new=False):
 
 def cmd_push(md_path):
     ensure_schema()
-    # ── 创作模型闸门(fail-closed, 09-10红线): md【头部】须标「创作模型:」且为Gemini/GPT系 ──
+    # ── 创作模型闸门(fail-closed, 09-21 用户拍板改版): md【头部】须标「创作模型:」且为主Agent模型 ──
+    # 09-10旧红线(Gemini/GPT系专属)已废: 用户定版「创作模型不要使用GPT和Gemini系列, 直接用主Agent执行」
+    # 标注行仍必填(保留溯源), 禁标GPT/Gemini防假溯源; 创作模型=主Agent模型名(标注行如实写主模型)
     # 只扫首个H2之前(审查SHOULD: 全文扫描可被正文引用行绕过=fail-open)
     raw = Path(md_path).read_text(encoding='utf-8')
     mhead = re.search(r'^创作模型[:：]\s*(.+)$', raw.split('\n## ', 1)[0], re.M)
     if not mhead:
-        sys.exit('头部缺「创作模型:」标注行 — 09-10红线要求三件套标注创作模型, 拒收')
-    if not re.match(r'(?i)\s*(gemini|gpt)', mhead.group(1)):
-        sys.exit(f'创作模型「{mhead.group(1).strip()}」非Gemini/GPT系 — 违反创作红线, 拒收')
+        sys.exit('头部缺「创作模型:」标注行 — 要求三件套标注创作模型, 拒收')
+    mm = re.match(r'(?i)\s*(gpt|gemini)\b', mhead.group(1))
+    if mm:
+        sys.exit(f'创作模型「{mhead.group(1).strip()}」禁用GPT/Gemini系 — 09-21用户拍板: 创作用主Agent模型, 拒收')
     books = parse_books(md_path)
     if not books:
         sys.exit('解析到0册 — md不匹配H2契约「## B00X · 词（链形）· 开场型：型」, 拒收(fail-closed)')
@@ -358,7 +361,7 @@ def cmd_import(csv_path, limit=None):
 def cmd_preprocess(mode='--list'):
     """预处理工单(消息驱动, 无cron): 状态=待预处理 即工单。
     --list: 列工单; --claim: 领单=原子勾「Agent预处理中」(防连发消息/双机重复创作)。
-    领后创作(创作模型红线: Gemini/GPT系子agent)→push(自动翻待审核+清勾)。仅本机执行(无CAS, SOP约定)。"""
+    领后创作(主Agent直创, 禁GPT/Gemini标注——09-21用户拍板)→push(自动翻待审核+清勾)。仅本机执行(无CAS, SOP约定)。"""
     ensure_schema()
     flt = {'property': '状态', 'select': {'equals': '待预处理'}}
     if mode == '--claim':

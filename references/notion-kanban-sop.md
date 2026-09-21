@@ -65,11 +65,11 @@
 python3 bin/gen_schedule.py ...
 # 1. 导入台账(属性行, 断点续传: 已存在排产号自动跳过, 0.35s/行限速)——导入后CSV即弃, 产物不入仓
 python3 bin/notion_kanban.py import <排产台账.csv>
-# 2a. 预处理工单模式(逐册): 用户在Notion置「待预处理」=下工单 → 列单→领单(勾Agent预处理中防重)→创作(模型红线:Gemini/GPT系)→push(自动翻待审核+清勾)
+# 2a. 预处理工单模式(逐册): 用户在Notion置「待预处理」=下工单 → 列单→领单(勾Agent预处理中防重)→主Agent直创(禁GPT/Gemini, 09-21拍板)→push(自动翻待审核+清勾)
 python3 bin/notion_kanban.py preprocess --list
 python3 bin/notion_kanban.py preprocess --claim
 # 2b. 批量排产模式: 三件套md → 六段页面 + 备选列回填 + **状态待产→待审核(Agent置位,=预处理完成标志)**
-#     md头部须有「创作模型: gemini-3.6-flash」行(创作红线闸门, 国产模型拒收); 双机约定: preprocess仅本机执行
+#     md头部须有「创作模型: <主Agent模型名>」行(溯源必填; 禁标GPT/Gemini——09-21用户拍板废09-10旧红线); 双机约定: preprocess仅本机执行
 #    push 只写 md 来源字段(核心词/链形/备选/旁白); 月/词型/绑定形态/画风等元数据单源=Notion属性栏, 无CSV参数
 #    push 写路径闸门(全绿才落库): title_check+batch_check+binding_check+style_check+ending_check — 违规整批 exit=1
 #    重推安全: 未交付页可安全重推(先append后归档); 已交付页(含生图提示词节)拒绝重建, 确认覆盖加 --force

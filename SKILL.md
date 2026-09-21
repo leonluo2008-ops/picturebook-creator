@@ -13,7 +13,7 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 用户要一批书/排产/排程/台账/「这个词库都做一遍」 → 批量排产模式
   → 读 references/batch-scheduling.md，五步流程：排台账→领册→批量L1-L3→批量闸门→交付
   → 批量闸门：batch_check 开场查重 + 标题三备选(每条含核心词,title_check) + 中文列绑定(逐字子块,binding_check) + 同书句式(style_check) + 末句收尾型(ending_check) + 链形查重（单册模式无此闸门）；生成 prompt 必含条款基线①-⑦（batch-scheduling.md §③），内容生成禁走子 agent
-  → 预处理工单（用户把素材置「待预处理」后来消息）→ preprocess --list/--claim 领单 → L1-L3（创作模型红线: Gemini/GPT系, md头部标「创作模型:」）→ push 翻待审核
+  → 预处理工单（用户把素材置「待预处理」后来消息）→ preprocess --list/--claim 领单 → L1-L3（主Agent直创, md头部标「创作模型: 主Agent模型名」; 禁GPT/Gemini——09-21用户拍板）→ push 翻待审核
   → 台账/审读/交付走 Notion 中控台时：读 references/notion-kanban-sop.md（import/push/poll/preprocess/deliver 命令 + 状态机联动 + API 坑清单）
 ```
 
