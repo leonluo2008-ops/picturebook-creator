@@ -287,6 +287,11 @@ def cmd_push(md_path):
     sc = style_check({b['word']: b['rows'] for b in books if b['rows']})
     ec = ending_check({b['word']: b['rows'][-1][2] if len(b['rows'][-1]) > 2 else b['rows'][-1][1]
                        for b in books if b['rows']})
+    # 简介形状提示(0921 wait事故, WARN级不拦截——语义审权威, 提示进人工终检)
+    from narration_quality_check import intro_shape_report
+    ish = intro_shape_report({b['word']: b['intros'] for b in books if b['intros']})
+    for w, d in ish:
+        print(f'⚠️ 简介形状提示 [{b["id"] if False else w}]: {d}')
     if bind:
         sys.exit('中文列绑定拦截(09-20事故闸门):\n- ' + '\n- '.join(bind) + '\n(中文列=中文短语+英文核心词块挂末尾, 修正 md 后重推)')
     if sc:

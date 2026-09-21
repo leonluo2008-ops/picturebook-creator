@@ -308,6 +308,45 @@ def style_check(books_rows):
 
 _ENDING_REST = ("睡", "休", "眠", "晚安", "停")
 
+# 简介形状检查用功能字集(不计为实词根)
+_INTRO_FUNC = set("的了呀呢吧啊哦哟是在我和跟都也很就还又才要会能可以上下里外有不到出说")
+
+def intro_shape_report(books_intros):
+    """简介备选形状提示器(20260921 wait事故新增, WARN级不拦截):
+    books_intros = {word: [备选1..N]}。检测两条形状同构信号:
+    ①「——核心词」破折号形状占比(全部备选同形状=公式化复制信号, 锚·narration-quality-anchor 反模板红线)
+    ②破折号后收尾节同一实词字根出现>=4条(wait病灶: 等一等/等一等/等来/等到 全部绕「等」字复读)
+    实验结论(0921): cn_skeleton骨架归一判不出简介同构(4/4骨架各异)、字面根计数>=3会误伤已验收册(B014「名」3次)——
+    故本检查只出提示进人工终检, 语义审权威; 阈值取最高置信档(全同形状+同根>=4)。
+    返回 [(word, desc)], 空列表=无形状风险信号。"""
+    problems = []
+    for word, intros in (books_intros or {}).items():
+        if not intros or len(intros) < 3:
+            continue
+        segs = []
+        dash_cnt = 0
+        for s in intros:
+            if not re.search(r'[—–─][—–─]', s or ''):
+                continue
+            dash_cnt += 1
+            seg = re.split(r'[—–─][—–─]', s, 1)[1]
+            segs.append(seg)
+        desc_parts = []
+        if dash_cnt == len(intros) and len(intros) >= 3:
+            desc_parts.append(f"「——核心词」形状 {dash_cnt}/{len(intros)} 条全同(公式化复制信号)")
+        if dash_cnt >= 3 and segs:
+            from collections import Counter
+            cnt = Counter()
+            for seg in segs:
+                for ch in {c for c in seg if '\u4e00' <= c <= '\u9fff' and c not in _INTRO_FUNC}:
+                    cnt[ch] += 1
+            for ch, c in cnt.most_common(2):
+                if c >= 4:
+                    desc_parts.append(f"破折号后收尾节绕同一字根「{ch}」复读 {c} 条")
+        if desc_parts:
+            problems.append((word, "；".join(desc_parts) + " —— 简介备选须形状互异(≥2种收尾形状), 人工终检裁决"))
+    return problems
+
 def ending_check(books_last):
     """同批末句收尾型闸门(2026-09-20定版): books_last = {word: 末句中文列全文}
     同批 >=2 册末句中文短语含归位静止字根(睡/休/眠/晚安/停) → 违规(B012/B016/B017 三连病灶)。
