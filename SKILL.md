@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 5.7.1
+version: 5.8.0
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持三种模式:故事模式(叙事弧线)、领读模式(认字启蒙)、批量排产模式(词库→台账→批量L1-L3)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计、批量排产与台账生成。触发词:加载绘本skill、加载绘本制作skill、加载绘本创作skill、绘本skill、绘本创作、画绘本、故事绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、认字绘本、教小朋友认字、排产、排程、排产清单、台账、批量做绘本、批量出书、B00x排产号、格式错了、应该是这样的、改中文、换中文、换语境、模板化、改中文不动英文、不通顺、别扭、按图、记住了、不要我再强调了、默认、太生硬、儿童语言、生动活泼。⚠️与picturebook-video(动画绘本)的触发分界:本skill=静态绘本制作(加载绘本skill/绘本创作/画绘本);「加载动画绘本skill/绘本视频/绘本转视频/绘本动画」=picturebook-video,勿抢触发。"
 ---
 
@@ -24,6 +24,14 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 > **增量** → `references/incident-20260921-wait-gibberish.md`（病灶逐句拆解 + 5 闸放行复现）+ `references/narration-quality-anchor.md` **L3 出稿自检表**（推进链逐句验证 / 观察者统一 / 场景过渡 / 中英实体对照 / 简介形状互异）。
 >
 > **核心**：单句质感达标 ≠ 全书连贯。L3 出稿后必须过出稿自检表；简介备选间形状互异（「——核心词」形状每册 ≤1 条）；机械提示 `intro_shape_report()`（WARN 不拦截，语义审权威）。v3.0 简介公式 = 原理示意非骨架模具（警示已写进公式本体）。
+
+## ⚠️⚠️⚠️ v5.8.0 生成侧镜像审修侧硬判据（2026-09-23 Start/Stop/Win 批事故新增 · 顶部置顶）
+
+> **病灶实证（另一创作会话 0921 批，15 本动作动词系列）**：简介备选成批挂空（Start 1号「小兔子喊一声」/Stop 1号「小停牌」/Win 1号「哨声+彩带」旁白全表无实拍）、收尾文艺腔（「遇见美好/魔法」）、Win 旁白行7 refrain 挂输语义（用户判词「跟核心词不匹配」）。根因=生成会话 35 次 skill_view 零次读 story-description v3.0 + 出稿自检表无 ⊆旁白 项 + 「方向一：具象发现」模板诱导发明式钩子且固定 1号位。
+>
+> **增量** → `references/narration-quality-anchor.md`（L3 出稿自检表+2：简介情节⊆旁白实拍三查/收尾词孩子嘴里说得出；绑定形态节+refrain 行内语义同域含合法教学弧豁免）+ `references/l1-l4-strict-format-template.md`（简介备选生成前必读 v3.0 + ⊆旁白 软闸过滤 + 四方向措辞修正）+ 全库 v2.0 陈旧指针清零 + intro-adversarial-testset T1-T10 回归。
+>
+> **边界声明**：镜像判据非闸门——现场领读 L3 判定权威仍归用户（铁律16 不变）；软闸仅拦 ⊆旁白 客观失败，形状偏好不过滤（人工选择形状即终审）。回归：凡改生成侧判据必跑 testset T 系列。
 
 ## ⚠️⚠️⚠️ v5.6.1 凑数型大/小清除铁律（2026-09-22 用户纠错新增 · 顶部置顶）
 
@@ -95,6 +103,7 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 ## ⚠️⚠️⚠️ v5.0.0 输出格式合规铁律（2026-07-21 many/get 双实测新增 · 顶部置顶）
 
 > **v5.6.0 增量（09-18 小羊上山调研）** → `references/narration-quality-anchor.md`（旁白质感四条正面标准 + 质感四问自检）
+> **v5.8.0 增量（09-23 生成侧镜像判据）** → `references/narration-quality-anchor.md`（出稿自检+2/refrain 语义同域）+ `references/l1-l4-strict-format-template.md`（⊆旁白软闸+v3.0 必读指针）+ testset T 系列 10 例
 > **v5.6.1 增量（09-22 凑数大/小清除）** → `references/l3-narration-childlike-vividness-v5.5.0.md`（铁律 9 + §十自检凑数清除关）+ intro-adversarial-testset.md S 系列 9 例
 > **v5.5.0 增量（09-14 中文旁白儿童化实测）** → `references/l3-narration-childlike-vividness-v5.5.0.md`（8 条新铁律 + 精简边界修订）
 > **v5.4.0 增量（07-24 11 本实测新增）** → `references/l3-l4-default-iron-laws.md`（铁律11-14 正文 + L4 重读清单，含铁律15 v5.5.1 模型全局控制 + **铁律16 L2 末页语义职责（2026-09-18 get 实测，L2 收束页三问闸门）**）
