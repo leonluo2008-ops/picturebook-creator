@@ -72,5 +72,5 @@
 - T7. 【流程·软闸】备选过滤声明：「四备选含旁白无实拍元素→生成时即滤不交用户选；过滤仅限 ⊆旁白 客观失败，形状偏好不过滤（防误杀+护选择权）」→ 声明行存在性 grep 验证（l1-l4-strict-format-template.md）
 - T8. 【流程】「方向一：具象发现」模板行重写为旁白实拍聚焦措辞（无发明式暗示）→ grep 验证旧措辞清零
 - T9. 【流程】L3 简介备选生成前必读指针「picturebook-story-description v3.0」存在于 l1-l4-strict-format-template.md → grep 验证（v2.0 陈旧指针全库清零）
-- T10. 【流程】全 references/*.md grep "v2.0" 指针=0（crayon-childlike-style-batch-pattern.md L114 残留须清）→ grep 验证
+- T10. 【流程】全 references/*.md 无 v2.0 陈旧指针（crayon-childlike-style-batch-pattern.md L114 已升级 v3.0；迁移说明行内提及 v2.0 历史非指针）→ grep 验证
 - 判定方式 = 语义审（T1-T6）+ grep 实证（T7-T10）；T5/T6 为 refrain 语义同域对抗对（病灶 vs 合法教学弧边界锚）
