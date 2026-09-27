@@ -1861,12 +1861,11 @@ cat 旁白原文：一只小猫 + 一顶帽子 + 一个垫子，串联 hat、mat
 - `references/darwin-case-study-20260530.md` —— 工作流检查点⚠️标记增强（2026-05-30上午）
 - `references/darwin-case-study-20260530-v2.md` —— 封面≠认知页分离规则（2026-05-30下午，v4.4.0）
 **水果领读系列批量模式**：`references/fruit-series-batch-pattern.md` —— 7个水果单词连续制作的标准化模式、页面结构、旁白模板、BGM偏好。
-**常用短语领读系列批量模式**：`references/phrase-series-batch-pattern.md` —— 短语类目标词（Excuse me/Let go/Me too/My god/Come on等）的标准化模式、⚠️核心词位置规则（中文旁白中核心词必须放在符合中文语法的自然位置，不能硬塞导致读起来别扭）、独有特征分析思路、结尾类型轮换。
-**动物领读系列批量模式**：`references/animal-series-batch-pattern.md` —— 动物单词的标准化模式、独有特征、旁白经验、主角外观拼贴约定。
-**动物领读系列批量模式**：`references/animal-series-batch-pattern.md` —— 动物领读绘本的差异化设计、词族整合技巧、性格路线、场景锚点、结尾页轮换。
-**常用短语领读系列批量模式**：`references/phrase-series-batch-pattern.md` —— 常用短语（Excuse me/Let go/Me too/Stop/Hold on/See you等）的批量模式、核心词中文放置规则、违禁词补充、结尾页轮换。
+**季节领读系列批量模式**：`references/season-series-batch-pattern.md` — 季节概念词（Spring/Summer/Autumn/Winter）的标准化模式、抽象概念词的特殊设计逻辑（不套6级句式骨架、不设词族页）、`[视觉信号] in [season]` 句式、季节间差异化（色调/动物/核心色块）、8内页结构模板、BGM统一欢乐庆祝。
+**常用短语领读系列批量模式**：`references/phrase-series-batch-pattern.md` —— 短语类目标词（Excuse me/Let go/Me too/My god/Come on/Stop/Hold on/See you等）的标准化模式、⚠️核心词位置规则（中文旁白中核心词必须放在符合中文语法的自然位置，不能硬塞导致读起来别扭）、独有特征分析思路、违禁词补充、结尾类型轮换。
+**动物领读系列批量模式**：`references/animal-series-batch-pattern.md` —— 动物单词的标准化模式、独有特征、旁白经验、主角外观拼贴约定；差异化设计、词族整合技巧、性格路线、场景锚点、结尾页轮换；⚠️体态描述铁律（"胖乎乎圆滚滚"仅限动物与小孩，成年角色禁用以防丑化）、人物美观度五条修复方案。
 **职业系列领读批量模式**：`references/career-series-batch-pattern.md` — 职业(doctor/nurse/police/teacher/firefighter/cleaner/farmer等)的标准化模式、角色多样性轮换、结尾类型轮换、简介围绕主题规则、出场顺序规则、中文尊称规则、人物外观描述禁写"身体色块拼贴"(06-08)
-**代词/形容词/家庭称谓领读系列批量模式**：`references/sight-word-series-batch-pattern.md` — 代词(we/you/I/he)、形容词(beautiful/clever)、家庭称谓(grandpa/grandma)的设计规则、主角搭配、中文旁白准确性、S16色彩饱和度铁律、BGM轻快偏好
+**代词/形容词/家庭称谓领读系列批量模式**：`references/sight-word-series-batch-pattern.md` — 代词(we/you/I/he/she/it/they)、形容词(beautiful/clever)、家庭称谓(grandpa/grandma)的设计规则、代词指代对象铁律（he/she=人类禁动物、it=动物、they=复数人类）、主角搭配、中文旁白准确性、S16色彩饱和度铁律、BGM轻快偏好
 **常用短语领读系列批量模式**：`references/phrase-type-words-pattern.md` — 常用社交短语/动词短语（excuse me, let go, me too等）的创作模式、独有特征提取、旁白核心词强化规则、已制作记录。
 **蔬菜领读系列批量模式**：`references/vegetable-series-batch-pattern.md` — 蔬菜单词（tomato/potato/carrot等）的标准化模式、蜡笔手绘童趣风设定、角色多样性轮换、蔬菜独有特征提取方法、结尾类型轮换记录。
 **文具领读系列批量模式**：`references/stationery-series-batch-pattern.md` — 文具单词（ruler/pencil/pen/notebook/textbook/exercise book/folder/schoolbag/book等）的标准化模式、旁白从用途出发、物件外观约定、角色多样性轮换、BGM欢快明亮。已做9本。
