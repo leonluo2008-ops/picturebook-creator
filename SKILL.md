@@ -1871,10 +1871,8 @@ cat 旁白原文：一只小猫 + 一顶帽子 + 一个垫子，串联 hat、mat
 **蔬菜领读系列批量模式**：`references/vegetable-series-batch-pattern.md` — 蔬菜单词（tomato/potato/carrot等）的标准化模式、蜡笔手绘童趣风设定、角色多样性轮换、蔬菜独有特征提取方法、结尾类型轮换记录。
 **文具领读系列批量模式**：`references/stationery-series-batch-pattern.md` — 文具单词（ruler/pencil/pen/notebook/textbook/exercise book/folder/schoolbag/book等）的标准化模式、旁白从用途出发、物件外观约定、角色多样性轮换、BGM欢快明亮。已做9本。
 **交通工具领读系列批量模式**：`references/transportation-series-batch-pattern.md` — 交通工具单词（bicycle等）的标准化模式、部件拆解式页面结构、与非蔬菜系列的差异、角色搭配。
-**文具类领读系列批量模式**：`references/stationery-series-batch-pattern.md` — 文具单词（ruler/schoolbag/book/textbook/notebook/exercise book/folder等）的标准化模式、角色多样性轮换、多词短语绑定规则、结尾类型轮换记录。
-**文具领读系列批量模式**：`references/food-series-batch-pattern.md` — 文具类单词（ruler/schoolbag/book/textbook/notebook等）的标准化模式、独有特征提取、主角搭配、结尾社交场景偏好。文具系列记录在food-series-batch-pattern.md的"文具领读子系列"章节。
+**食物领读系列批量模式**：`references/food-series-batch-pattern.md` — 食物单词（pizza/noodle/rice/dumplings/bread/cake/ice cream/french fries/hamburger等）的标准化模式、独有特征提取、主角搭配、结尾社交场景偏好、系列内风格切换（蜡笔手绘童趣风→Eric Carle拼贴风）。
 **家具领读系列批量模式**：`references/furniture-series-batch-pattern.md` — 家具单词（door/window/table/chair/bed/sofa/bookcase）的标准化模式、形态变化+结构特征页面结构、纯物体展示+仅互动页出角色、结尾情感型为主。
-**文具类领读系列批量模式**：`references/stationery-series-batch-pattern.md` — 文具/学习用品（eraser/ruler/schoolbag/book/textbook/notebook等）的标准化模式、部件+功能+变体页面结构、主角搭配、结尾类型轮换。
 **项目目录结构**（定位文件用）：`references/huiben-project-layout.md`
 
 ## 通用规则(两种模式均适用)

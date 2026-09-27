@@ -6,9 +6,11 @@
 
 | 路径 | 用途 |
 |------|------|
-| `/home/luo/huiben-v2/` | 主要绘本项目目录（故事模式 + 领读模式存档） |
-| `/home/luo/.openclaw/workspace-huiben-v2/` | OpenClaw 旧版工作区（仍含 session 日志） |
-| `/home/luo/作品/` | 已完成绘本作品存档 |
+| `~/huiben-v2/` | 主要绘本项目目录（故事模式 + 领读模式存档、session 记录） |
+| `~/huiben-projects/` | 按项目分目录的绘本产物（如 `2026-06-07-bird/`） |
+| `~/作品/` | 已完成绘本作品存档 |
+
+> ⚠️ 旧 OpenClaw 工作区 `~/.openclaw/workspace-huiben-v2/` 已不存在，相关路径勿再引用。
 
 ## 典型文件命名模式
 
@@ -39,8 +41,7 @@ find /home/luo/huiben-v2 -type f -name "*.md" -newer /home/luo/huiben-v2/memory/
 ## Session Memory 位置
 
 ```
-/home/luo/huiben-v2/memory/YYYY-MM-DD-*.md    # 每日 session 记录
-/home/luo/.openclaw/workspace-huiben-v2/memory/YYYY-MM-DD-*.md  # 旧版 session
+~/huiben-v2/memory/YYYY-MM-DD-*.md    # 每日 session 记录
 ```
 
 当用户说"修正 X 旁白"但没提供文件时，优先查 memory 目录看是否有相关 session 记录。

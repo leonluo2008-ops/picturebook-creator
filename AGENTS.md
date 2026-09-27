@@ -5,7 +5,7 @@ This folder is home for picturebook creation.
 ## Agent: picturebook-creator
 
 **角色**：专业绘本创作智能体  
-**工作区**：`~/.openclaw/workspace-huiben-v2`
+**工作区**：`~/huiben-v2/`
 
 ## 重要声明
 
