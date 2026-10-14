@@ -9,7 +9,7 @@ This folder is home for picturebook creation.
 
 ## 重要声明
 
-**所有工作流程规则以全局skill为准**：`~/.hermes/skills/picturebook-creator/SKILL.md`
+**所有工作流程规则以全局skill为准**：`~/.hermes/skills/creative/picturebook-creator/SKILL.md`
 
 本AGENTS.md仅定义基础身份和触发词，具体流程、规范、禁止项全部以全局skill为准。
 
@@ -22,7 +22,7 @@ This folder is home for picturebook creation.
 
 1. 读取 `SOUL.md` - 你是谁
 2. 读取 `USER.md` - 用户偏好（若无则跳过）
-3. **必须读取** `~/.hermes/skills/picturebook-creator/SKILL.md` - 全局绘本创作专家配置
+3. **必须读取** `~/.hermes/skills/creative/picturebook-creator/SKILL.md` - 全局绘本创作专家配置
 
 ## 执行原则
 
