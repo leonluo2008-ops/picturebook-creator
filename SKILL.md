@@ -1869,6 +1869,8 @@ cat 旁白原文：一只小猫 + 一顶帽子 + 一个垫子，串联 hat、mat
 - `references/darwin-case-study-20260530-v2.md` —— 封面≠认知页分离规则（2026-05-30下午，v4.4.0）
 **水果领读系列批量模式**：`references/fruit-series-batch-pattern.md` —— 7个水果单词连续制作的标准化模式、页面结构、旁白模板、BGM偏好。
 **季节领读系列批量模式**：`references/season-series-batch-pattern.md` — 季节概念词（Spring/Summer/Autumn/Winter）的标准化模式、抽象概念词的特殊设计逻辑（不套6级句式骨架、不设词族页）、`[视觉信号] in [season]` 句式、季节间差异化（色调/动物/核心色块）、8内页结构模板、BGM统一欢乐庆祝。
+**L3/L4 与末页铁律（铁律11-16）**：`references/l3-l4-default-iron-laws.md` — L4 引导语防污染、职业类主角必画人物、**L3 末两页主语回归主题物（铁律13）**、**L2 末页语义职责三问（铁律16）**、生图模型全局控制、L4 输出前强制重读清单。（2026-09-27 回滚中误删，2026-10-14 恢复并补索引；3 处悬空引用由此修复）
+**末句形态多样性**：`references/ending-diversity-pattern.md` — 末句备选制（主机制）、形态约束上游闸门、冲突优先级、病灶记录。（同上，2026-10-14 恢复）
 **常用短语领读系列批量模式**：`references/phrase-series-batch-pattern.md` —— 短语类目标词（Excuse me/Let go/Me too/My god/Come on/Stop/Hold on/See you等）的标准化模式、⚠️核心词位置规则（中文旁白中核心词必须放在符合中文语法的自然位置，不能硬塞导致读起来别扭）、独有特征分析思路、违禁词补充、结尾类型轮换。
 **动物领读系列批量模式**：`references/animal-series-batch-pattern.md` —— 动物单词的标准化模式、独有特征、旁白经验、主角外观拼贴约定；差异化设计、词族整合技巧、性格路线、场景锚点、结尾页轮换；⚠️体态描述铁律（"胖乎乎圆滚滚"仅限动物与小孩，成年角色禁用以防丑化）、人物美观度五条修复方案。
 **职业系列领读批量模式**：`references/career-series-batch-pattern.md` — 职业(doctor/nurse/police/teacher/firefighter/cleaner/farmer等)的标准化模式、角色多样性轮换、结尾类型轮换、简介围绕主题规则、出场顺序规则、中文尊称规则、人物外观描述禁写"身体色块拼贴"(06-08)
