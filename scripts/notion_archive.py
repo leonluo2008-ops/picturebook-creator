@@ -268,7 +268,12 @@ def rt(text: str) -> list:
 
 
 def code_blocks(text: str):
-    """按行边界切 ≤1900 字符的 code 块（rich_text 上限 2000）。"""
+    """单个 code 块，rich_text 按行边界切成 ≤1900 字符的多段。
+
+    Notion 的 2000 字符上限是**单条 rich_text** 的限制，不是整个 block 的限制；
+    一个 block 的 rich_text 数组最多可放 100 条。所以长文本应当切成多条 rich_text
+    放进**同一个** code 块，而不是拆成多个 code 块（那样在页面上会显示成两截）。
+    """
     chunks, cur = [], ""
     for line in text.splitlines(keepends=True):
         if len(cur) + len(line) > MAX_RICH_TEXT:
@@ -282,13 +287,16 @@ def code_blocks(text: str):
             cur += line
     if cur:
         chunks.append(cur)
+    if not chunks:
+        return []
     return [
         {
             "type": "code",
-            "code": {"rich_text": rt(c), "language": "plain text"},
+            "code": {
+                "rich_text": [{"type": "text", "text": {"content": c}} for c in chunks],
+                "language": "plain text",
+            },
         }
-        for c in chunks
-        if c.strip()
     ]
 
 

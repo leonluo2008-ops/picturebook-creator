@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 10.6.0
+version: 10.6.1
 required_environment_variables:
   - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、故事绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本。"
@@ -757,8 +757,10 @@ python3 scripts/notion_archive.py --word day \
 1. `heading_2`:`📚 创作产出(YYYY-MM-DD 归档)`
 2. `paragraph`:选定标题 / 选定简介
 3. `heading_3`:双语旁白 → `table` 块(3 列,首行表头)
-4. `heading_3`:L4 生图提示词 → `code` 块,>1900 字按行边界切段(实测 3827 字→3 块,内容零丢失)
+4. `heading_3`:L4 生图提示词 → **一个** `code` 块；超过 1900 字时按行边界切成多条 `rich_text` 放进**同一个** block（页面上显示为一整块，不会断成两截）
 5. GET `/v1/pages/{page_id}/markdown` 回读,核对 heading / 旁白首行 / L4 场景锚点 / 核心词
+
+> **为什么是一个 block 而不是多个**：Notion 的 2000 字符上限作用于**单条 rich_text**，不是整个 block；一个 block 的 rich_text 数组最多可放 100 条。早期按「每个 chunk 建一个 code block」写，结果 3000 字以上的 L4 在页面上被劈成两截，看起来像断了。正确做法是同一 block 内多条 rich_text，读出来自然是完整一段。
 
 #### 台账定位三段式(脚本已内置;手工兜底时照此执行)
 
@@ -787,7 +789,7 @@ python3 scripts/notion_archive.py --word day \
 
 - `PATCH /v1/pages/{id}/markdown` 端点已不可用(报 `body.type should be defined`)→ 一律用 `PATCH /v1/blocks/{page_id}/children`。
 - `table` 块:**不要** `cells` 字段;必须带 `children:[{type:"table_row",table_row:{cells:[[rich_text数组],[...],[...]]}}]`,单元格是 rich_text 数组直接放,外面不再包 `{type:rich_text,...}`;`has_column_header: true`。
-- `rich_text.content` 上限 2000 字符 → 脚本按 1900 按行切块。
+- `rich_text.content` 单条上限 2000 字符 → 脚本按 1900 按行切段；**切出来的是同一 code 块里的多条 rich_text，不是多个 code 块**（后者会在页面上断成两截）。
 - 台账库需已 Connect 到 integration,否则 404 `object_not_found`。
 
 #### 环境要求
