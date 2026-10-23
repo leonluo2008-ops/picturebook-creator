@@ -25,6 +25,12 @@
 5) 可选属性回填（默认关闭：用户 2026-10-23 明确「直接回填到正文就可以了」）
    ... 同上 ...  --attr-title --attr-brief
 
+6) 台账没有该核心词的行时（默认行为 = 自动建行）
+   · 按「核心词」精确查行：查到 → 直接用该行，**绝不重复建行**
+   · 查不到 → 自动在台账新建一行（排产号取全库最大 B### +1，状态列留空交给排产流水线）
+   · 想禁用自动建行：--no-create
+   · 新行需要词型/指定排产号：--word-type 名词 --sched-no B301
+
 narration.md 支持两种格式：
   A) markdown 表格（首行表头 + 分隔行自动跳过）
        | 页码 | 英文 | 中文 |
@@ -154,8 +160,8 @@ def resolve_data_source() -> str:
         return ds2
 
 
-def find_row(ds_id: str, word: str) -> dict:
-    """按「核心词」精确匹配定位台账行。"""
+def query_rows(ds_id: str, word: str) -> list:
+    """按「核心词」精确匹配查行。"""
     res = api(
         f"/v1/data_sources/{ds_id}/query",
         "POST",
@@ -164,18 +170,67 @@ def find_row(ds_id: str, word: str) -> dict:
             "filter": {"property": "核心词", "rich_text": {"equals": word}},
         },
     )
-    rows = res.get("results", [])
-    if not rows:
-        raise SystemExit(
-            f"✗ 台账里没有「核心词 = {word}」的行。\n"
-            f"  按 L5 铁律：不自动建行 —— 请把核心词报给用户，由用户决定是否补排产行。"
-        )
+    return res.get("results", [])
+
+
+def next_sched_no(ds_id: str) -> str:
+    """扫全库取最大 B### +1（必须分页到 has_more=false，单页会漏）。"""
+    nums, cur = [], None
+    while True:
+        body = {"page_size": 100}
+        if cur:
+            body["start_cursor"] = cur
+        res = api(f"/v1/data_sources/{ds_id}/query", "POST", body)
+        for row in res.get("results", []):
+            t = (row.get("properties") or {}).get("排产号", {}).get("title") or []
+            s = "".join(x.get("plain_text", "") for x in t).strip()
+            if s[:1] == "B" and s[1:].isdigit():
+                nums.append(int(s[1:]))
+        if not res.get("has_more"):
+            break
+        cur = res.get("next_cursor")
+    return "B%03d" % ((max(nums) + 1) if nums else 1)
+
+
+def create_row(ds_id: str, word: str, word_type: str = "", sched_no: str = "") -> dict:
+    """在台账新建一行（只在按核心词查不到时调用）。状态列不设值 —— 归排产流水线管。"""
+    sched_no = sched_no or next_sched_no(ds_id)
+    props = {
+        "排产号": {"title": [{"type": "text", "text": {"content": sched_no}}]},
+        "核心词": {"rich_text": rt(word)},
+    }
+    if word_type:
+        props["词型"] = {"rich_text": rt(word_type)}
+    pg = api("/v1/pages", "POST", {"parent": {"data_source_id": ds_id}, "properties": props})
+    pg["_排产号"] = sched_no
+    pg["_created"] = True
+    return pg
+
+
+def resolve_row(ds_id: str, word: str, allow_create: bool, word_type: str, sched_no: str) -> dict:
+    """有则复用、无则新建。幂等：同一核心词永远不会产生第二行。"""
+    rows = query_rows(ds_id, word)
     if len(rows) > 1:
         nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
         raise SystemExit(f"✗ 「核心词 = {word}」命中多行：{nums}。请用 --page-id 明确指定。")
-    row = rows[0]
-    row["_排产号"] = rich_text_of(row, "排产号")
-    return row
+    if rows:
+        rows[0]["_排产号"] = rich_text_of(rows[0], "排产号")
+        return rows[0]
+    if not allow_create:
+        raise SystemExit(
+            f"✗ 台账里没有「核心词 = {word}」的行，且已显式禁用自动建行(--no-create)。"
+        )
+    print(f"  · 台账无「核心词 = {word}」的行 → 自动建行", file=sys.stderr)
+    return create_row(ds_id, word, word_type, sched_no)
+
+
+def has_archive(page_id: str) -> bool:
+    """该行正文是否已经有「创作产出」段落（防重复归档）。"""
+    try:
+        md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
+    except SystemExit:
+        return False
+    return "📚 创作产出" in md
 
 
 def rich_text_of(page: dict, prop: str) -> str:
@@ -304,8 +359,13 @@ def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
     anchors = re.findall(r"场景锚点[:：]\s*([^\n，,]+)", l4)
     if anchors and anchors[-1].strip() not in md:
         missing.append(f"L4 场景锚点『{anchors[-1].strip()}』")
-    if word and word not in md:
-        missing.append(f"核心词『{word}』")
+    # 核心词校验看台账行属性（正文里不一定会出现该词，尤其新建行）
+    try:
+        row_word = rich_text_of(api(f"/v1/pages/{page_id}"), "核心词")
+    except SystemExit:
+        row_word = ""
+    if row_word and word and word.strip().lower() not in row_word.lower():
+        missing.append(f"台账『核心词』应为『{word}』，实际『{row_word}』")
     return missing
 
 
@@ -321,23 +381,48 @@ def main() -> int:
     ap.add_argument("--page-id", default=None, help="直接指定台账 row 的 page_id（跳过查行）")
     ap.add_argument("--attr-title", action="store_true", help="属性回填『选定标题』")
     ap.add_argument("--attr-brief", action="store_true", help="属性回填『选定简介』")
+    ap.add_argument("--word-type", default="", help="新建行时写入『词型』（名词/动作动词/形容词…）")
+    ap.add_argument("--sched-no", default="", help="新建行时指定排产号，默认自动取 B###+1")
+    ap.add_argument("--no-create", action="store_true", help="查不到该核心词时禁止建行（默认会建）")
+    ap.add_argument("--force", action="store_true", help="该行已有创作产出时仍追加一段（默认拦截）")
     ap.add_argument("--locate", action="store_true", help="只定位台账行并打印，不写")
     ap.add_argument("--dry-run", action="store_true", help="打印 block 清单，不发写请求")
     args = ap.parse_args()
 
     date = args.date or __import__("datetime").date.today().isoformat()
 
-    # 1) 定位行
+    # 1) 定位行（有则复用 / 无则新建，除非 --no-create / --page-id）
     if args.page_id:
         page_id, sched_no = args.page_id, "(--page-id 指定)"
+        print(f"✓ 台账行：{sched_no}  page_id={page_id}")
+    elif args.locate:
+        ds_id = resolve_data_source()
+        rows = query_rows(ds_id, args.word)
+        if len(rows) > 1:
+            nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
+            raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
+        if rows:
+            print(f"✓ 台账已有该行：{rich_text_of(rows[0], '排产号')}  page_id={rows[0]['id']}（不会重复建行）")
+            if has_archive(rows[0]["id"]):
+                print("  ⚠ 该行正文已有『创作产出』段落 —— 再归档需加 --force")
+        elif args.no_create:
+            print(f"✗ 台账无「核心词 = {args.word}」的行，且已禁用自动建行(--no-create)")
+        else:
+            print(f"· 台账无「核心词 = {args.word}」的行 → 归档时会自动建行（排产号预计 {next_sched_no(ds_id)}）")
+        return 0
     else:
         ds_id = resolve_data_source()
-        row = find_row(ds_id, args.word)
+        row = resolve_row(ds_id, args.word, not args.no_create, args.word_type, args.sched_no)
         page_id, sched_no = row["id"], row.get("_排产号", "")
-    print(f"✓ 台账行：{sched_no}  page_id={page_id}")
+        tag = "【新建行】" if row.get("_created") else ""
+        print(f"✓ 台账行{tag}：{sched_no}  page_id={page_id}")
 
-    if args.locate:
-        return 0
+    # 防重复归档：该行已有创作产出 → 默认拦截
+    if has_archive(page_id) and not args.force:
+        raise SystemExit(
+            f"✗ 该行正文已有『📚 创作产出』段落，为防重复归档已拦截。\n"
+            f"  确认要再加一段（例如 L4 重出后补档）→ 加 --force。"
+        )
 
     if not (args.narration and args.l4):
         raise SystemExit("✗ 归档需要 --narration 和 --l4（或用 --locate 只查看行）")
