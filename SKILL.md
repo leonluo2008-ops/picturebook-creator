@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 10.4.0
+version: 10.4.1
 required_environment_variables:
   - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、故事绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本。"
@@ -282,6 +282,7 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 **一、英文大小写**
 - 句首字母大写，`I` 永远大写
 - `Mom` / `Dad` / `Grandma` 这类当名字用时大写
+- **句首如果是字母组合（`ey` / `gh` / `igh`），首字母同样要大写**：`Ey says ee`、`Gh is silent`；中文旁白行首是拉丁字母时也照此大写（`Ey 读 ee，钱，money！`）
 - 目标词按句中小写写，不为显眼把整词大写（字母拆解页 `M-O-N-EY` 除外）
 - 同一页内风格统一，不混用
 
