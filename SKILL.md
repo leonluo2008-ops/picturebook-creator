@@ -1478,3 +1478,13 @@ python3 scripts/notion_archive.py --word day \
 3. 每次只生成一个提示词
 4. 输出纯提示词文本,用户粘贴到 MiniMax 网页版生成
 5. 不在提示词外添加额外解释
+
+---
+
+## Skill 源仓库与维护（改本文件前必读）
+
+- 本 skill 主仓托管在 GitHub `leonluo2008-ops/picturebook-creator`（Gitee 同名仓库只是镜像，不要从 Gitee 拉）。本机 skill 目录即该仓的 git 检出，工作分支按日期命名（如 `PC1024-3`）。
+- **改 SKILL.md / references/ 之前，先 `git fetch origin <工作分支>` 并检出远程最新版，在其上修改**——本地未提交的散装补丁会被 checkout 覆盖，先改后同步等于白做一轮。
+- 出网拉取/推送需挂代理（127.0.0.1:7897）。
+- 改完更新三处版本痕迹并一次提交推送：SKILL.md frontmatter `version`、CHANGELOG.md 顶部条目、README.md 当前版本段与版本列表。
+- 改动条目写「规则 + 判据」，不写事故叙事；同一坑第二次出现时合并进既有条目，不新增第二条。
