@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## v10.1.1 — 2026-10-23 · L5 Notion 归档可执行化
+
+> v10.1.0 只写了 L5 的**规范**，没写**怎么执行**：别机装上本 skill 后，L4 确认完会看到「静默归档」却没有任何可执行路径。
+
+### 新增
+
+- `scripts/notion_archive.py`（零依赖 CLI，标准库 urllib）：
+  - 台账定位三段式内置（中控台页 → `child_database` → `GET /v1/databases/{db_id}` → `data_sources[].id`），默认常量失效时自动沿链重新发现；
+  - 按「核心词」精确查行；查不到 → 报核心词、**不自动建行**；多行命中 → 要求 `--page-id` 指定；
+  - 写 `heading_2` / `paragraph`（选定标题、选定简介）/ `heading_3`+`table`（旁白 3 列，`table_row` 嵌套写法）/ `heading_3`+`code`（L4 全文，1900 字按行切块）；
+  - 写完 GET `/v1/pages/{id}/markdown` 回读校验（heading / 旁白首行 / L4 场景锚点 / 核心词），缺失 exit 1；
+  - `--locate` 只读定位、`--dry-run` 干跑、`--attr-title/--attr-brief` 属性回填（默认关闭）。
+
+### 修复
+
+- 删除 L5 里「两段式见 `picturebook-production-scheduling`」的**悬空引用** —— 该 skill 是本地独仓（无 remote），装 picturebook-creator 的机器根本拿不到；现改为把中控台页 id / db_id / data_source_id 与解析链内联进 SKILL.md 与脚本。
+- frontmatter 新增 `required_environment_variables: [NOTION_API_KEY]`，缺 key 的机器在 skill 就绪检查阶段即暴露。
+- README 补「L5 Notion 排产台账归档」章节 + 文件结构补 `scripts/`。
+
+### 实测（2026-10-23）
+
+- `--locate day` → 命中 `B001`，page_id 正确；
+- 临时页真跑端到端：7 个顶层块写入 → 回读 markdown 539 字，heading/表格/code 全部落位；
+- 3827 字 L4 → 切 3 块（1712 + 1696 + 419）写入 → 回读 4195 字，9 页旁白 + 末尾场景锚点零丢失；
+- 自测临时页已删除，真实台账 B001 未做任何写入。
+
 ## v10.0.0 — 2026-10-23 · **基线重置（Breaking Change）**
 
 > 本版不是增量更新，是**基线重置**。版本号从 1.0.0 直接跳到 10.0.0，用来切断与 6–10 月那套错误范式的连续性。

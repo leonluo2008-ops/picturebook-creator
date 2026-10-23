@@ -1,6 +1,8 @@
 ---
 name: picturebook-creator
-version: 10.1.0
+version: 10.1.1
+required_environment_variables:
+  - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、故事绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本。"
 ---
 
@@ -42,7 +44,7 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 步骤L2 页面结构设计(6-10页教学结构)
 步骤L3 领读标题+简介+双语旁白
 步骤L4 领读生图提示词
-步骤L5 Notion排产台账归档(L4确认后自动触发)
+步骤L5 Notion排产台账归档(L4确认后自动触发 → scripts/notion_archive.py 一条命令)
 ```
 
 ---
@@ -153,7 +155,7 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 步骤L4 生图提示词
   ├─ 输出完整生图提示词(代码块)
   └─ 代码块外无任何文字
-步骤L5 Notion排产台账归档(L4确认后自动触发)
+步骤L5 Notion排产台账归档(L4确认后自动触发 → scripts/notion_archive.py 一条命令)
 ```
 
 ---
@@ -563,34 +565,84 @@ dog 旁白原文：一只小狗在草地上跑，在木头上睡，串联 fog、
 
 ---
 
-### 步骤L5:Notion排产台账归档(2026-10-23新增)
+### 步骤L5:Notion排产台账归档(v10.1.1 可执行化 · 2026-10-23)
 
-> L4提示词经用户确认(或确认词通过)后,无需再提示,直接执行归档。状态列一律不动(状态归排产流水线管)。
+> L4 提示词经用户确认(或确认词通过)后,**无需再提示,直接执行归档**。状态列一律不动(状态归排产流水线管)。
+> 归档**靠仓内脚本完成**,不要现场手写 Notion API 调用 —— 脚本已固化全部实测坑与定位链。
 
-#### 归档动作
+#### 一条命令(默认动作)
 
-1. **定位行**:查排产台账 data_source,`核心词` 精确等于目标单词(如 `day`)。找不到该行 → 报告核心词并询问用户处理,**不自动建行**。
-2. **(可选,仅用户要求时)属性回填**:标题/简介备选与选定列。**默认只写正文**,用户 2026-10-23 明确「直接回填到正文就可以了」。
-3. **正文写入**(PATCH `https://api.notion.com/v1/blocks/{page_id}/children`,Notion-Version: `2025-09-03`),按序追加:
-   - `heading_2`:`📚 创作产出(YYYY-MM-DD 归档)`
-   - `paragraph`:选定标题 / 选定简介各一段
-   - `heading_3`:双语旁白 → `table` 块(3列:页码|英文|中文,首行表头)
-   - `heading_3`:L4 生图提示词(全文) → `code` 块,>2000字按行边界切段(每段≤1900字)分块存放
-4. **回读验证**:GET `/v1/pages/{page_id}/markdown`,核对标题/旁白/L4场景锚点均在,再向用户报告完成。
+```bash
+# 1) 先定位行(只读,确认核心词命中哪一行,拿到排产号/行 page_id)
+python3 scripts/notion_archive.py --word day --locate
 
-#### 2026-10-23 实测坑(必须遵守)
+# 2) 归档正文(heading + 选定标题/简介 + 旁白表 + L4 全文 + 回读校验)
+python3 scripts/notion_archive.py --word day \
+    --title '选定标题全文' \
+    --brief '选定简介全文' \
+    --narration /tmp/narration.md \
+    --l4 /tmp/l4.md \
+    --date 2026-10-23
+
+# 3) 只想看会写什么(不发任何写请求)
+... 同上 ... --dry-run
+```
+
+脚本:`scripts/notion_archive.py`(相对本 skill 目录,零依赖,python3 直跑;失败即 exit 1)。
+
+| 参数 | 说明 |
+|---|---|
+| `--word` | **必填**,台账「核心词」列精确匹配 |
+| `--title` / `--brief` | 选定标题 / 选定简介,写正文各一段 |
+| `--narration` | 旁白文件:markdown 表 `| 页码 | 英文 | 中文 |`(表头/分隔行自动跳过)或 JSON |
+| `--l4` | L4 生图提示词纯文本全文 |
+| `--date` | 归档日期,默认今天 |
+| `--page-id` | 直接指定台账行,跳过按核心词查行(多行命中时用) |
+| `--attr-title` / `--attr-brief` | **可选**属性回填。默认关闭:用户 2026-10-23 明确「直接回填到正文就可以了」 |
+| `--locate` / `--dry-run` | 只读定位 / 干跑 |
+
+脚本固定按下列顺序写入,并在最后回读校验(缺失项直接 exit 1):
+1. `heading_2`:`📚 创作产出(YYYY-MM-DD 归档)`
+2. `paragraph`:选定标题 / 选定简介
+3. `heading_3`:双语旁白 → `table` 块(3 列,首行表头)
+4. `heading_3`:L4 生图提示词 → `code` 块,>1900 字按行边界切段(实测 3827 字→3 块,内容零丢失)
+5. GET `/v1/pages/{page_id}/markdown` 回读,核对 heading / 旁白首行 / L4 场景锚点 / 核心词
+
+#### 台账定位三段式(脚本已内置;手工兜底时照此执行)
+
+```
+中控台页 page_id  3e0a3f92-69aa-81b4-8385-c2a5309d0824   (搜索关键词「中控」)
+  └─ 正文 child_database(台账库) db_id  3e0a3f92-69aa-81a6-a5b5-e2bb7962e207
+       └─ GET /v1/databases/{db_id} → data_sources[0].id
+            data_source_id  3e0a3f92-69aa-8181-b457-000bcba7fc09
+              └─ POST /v1/data_sources/{data_source_id}/query   ← 唯一可 query 的入口
+```
+
+- ⚠️ **child_database id ≠ data_source_id**,拿 db_id 直接 query 必 404。
+- 默认 data_source 失效时脚本自动沿上面这条链重新发现,无需人工介入。
+- 换工作区用环境变量覆盖:`NOTION_CONTROL_PAGE_ID` / `NOTION_LEDGER_DB_ID` / `NOTION_DATA_SOURCE_ID`。
+
+#### 铁律
+
+- 按 `核心词` 精确匹配**定位已有行**;找不到 → 把核心词报给用户,**不自动建行**。
+- 命中多行 → 停下,用 `--page-id` 明确指定,禁止猜。
+- 状态列一律不动。
+
+#### 实测坑(必须遵守)
 
 - `PATCH /v1/pages/{id}/markdown` 端点已不可用(报 `body.type should be defined`)→ 一律用 `PATCH /v1/blocks/{page_id}/children`。
-- `table` 块:**不要** `cells` 字段;必须带 `children:[{type:"table_row",table_row:{cells:[[rich_text数组],[...],[...]]}}]`,单元格是 rich_text 数组直接放,外面不再包 `{type:rich_text,...}`。
-- 台账 page_id 与 排产台账库(database_id≠data_source_id):先 `GET /v1/databases/{db_id}` 取 `data_sources[].id` 再 query;两段式见 `picturebook-production-scheduling`。
+- `table` 块:**不要** `cells` 字段;必须带 `children:[{type:"table_row",table_row:{cells:[[rich_text数组],[...],[...]]}}]`,单元格是 rich_text 数组直接放,外面不再包 `{type:rich_text,...}`;`has_column_header: true`。
+- `rich_text.content` 上限 2000 字符 → 脚本按 1900 按行切块。
+- 台账库需已 Connect 到 integration,否则 404 `object_not_found`。
 
 #### 环境要求
 
-- `NOTION_API_KEY` 于 `~/.hermes/.env`;台账库需已 Connect 到 integration,否则 404。
+- `NOTION_API_KEY` 于 `~/.hermes/.env`(脚本自动读取,也可直接 export)。
+- frontmatter 已声明 `required_environment_variables: [NOTION_API_KEY]` —— 没配 key 的机器会在 skill 就绪检查里暴露,而不是等到跑归档时才 401/404。
 
 #### 交接界面
 
-- 对话中产出:用户确认L4 → 本步骤静默归档 → 回一句「已归档 Notion ✓(行号/排产号)」即可,不搬运长文到聊天。
+- 用户确认 L4 → 静默归档 → 只回一句「已归档 Notion ✓(排产号/行)」,不搬运长文到聊天。
 
 ---
 

@@ -7,7 +7,11 @@
 
 ---
 
-## ⚠️ 当前版本：v10.0.0（2026-10-23 定版）
+## ⚠️ 当前版本：v10.1.1（2026-10-23）
+
+> v10.1.1 = v10.1.0 的**可执行化补丁**：L5 Notion 排产台账归档从「一段承诺」变成「一条命令」（`scripts/notion_archive.py`），并把台账定位三段式与全部实测坑固化进脚本，删除对未发布 skill 的悬空依赖。
+>
+> 以下 v10.0.0 的基线重置说明仍然有效。
 
 **这是本 skill 的全新大版本。** 版本号从 `1.0.0` 跳到 `10.0.0` 是有意的——它不是一次增量更新，而是**一次基线重置**：
 
@@ -134,6 +138,33 @@
 
 ---
 
+## L5 Notion 排产台账归档（v10.1.1 可执行化）
+
+领读模式 L4 生图提示词确认后**自动触发**，把创作产出回填到 Notion「绘本排产中控台 → 排产台账」对应行（按核心词精确定位行，状态列不动）。
+
+```bash
+python3 scripts/notion_archive.py --word day --locate                    # ① 只读定位行
+python3 scripts/notion_archive.py --word day \                          # ② 归档正文
+    --title '选定标题' --brief '选定简介' \
+    --narration /tmp/narration.md --l4 /tmp/l4.md
+# --dry-run 干跑 / --page-id 指定行 / --attr-title --attr-brief 属性回填（默认关闭）
+```
+
+写入结构（脚本内置，末尾自动回读校验，缺失即 exit 1）：
+
+| 顺序 | 块 | 内容 |
+|---|---|---|
+| 1 | `heading_2` | `📚 创作产出（YYYY-MM-DD 归档）` |
+| 2 | `paragraph` | 选定标题 / 选定简介 |
+| 3 | `heading_3` + `table` | 双语旁白（3 列，首行表头） |
+| 4 | `heading_3` + `code` | L4 生图提示词全文（>1900 字按行切块） |
+
+前置条件：`NOTION_API_KEY` 在 `~/.hermes/.env`（frontmatter 已声明为必需环境变量），台账库已 Connect 到该 integration。
+
+> 台账定位三段式（中控台页 → child_database → `GET /v1/databases/{id}` → `data_sources[].id`）已内置于脚本并带自动重新发现；`child_database id ≠ data_source_id`，拿前者直接 query 必 404。
+
+---
+
 ## 文件结构
 
 ```
@@ -144,6 +175,8 @@ picturebook-creator/
 ├── README.md             # 本文件
 ├── CHANGELOG.md          # 版本说明（含 v10.0.0 重置说明）
 ├── test-prompts.json     # 测试用例
+├── scripts/
+│   └── notion_archive.py # L5 归档脚本（零依赖 CLI：定位行→写正文→回读校验）
 ├── tools/                # 校验脚本（悬空引用扫描等）
 └── references/
     └── style-library.md  # 风格备选库（16种预设风格，SKILL.md 唯一引用的参考文件）
@@ -157,6 +190,8 @@ picturebook-creator/
 
 ## 版本
 
+- **v10.1.1**（2026-10-23）：L5 Notion 归档可执行化 —— 新增 `scripts/notion_archive.py`，定位三段式/实测坑内联，frontmatter 声明 `NOTION_API_KEY`，删除对 `picturebook-production-scheduling` 的悬空依赖
+- **v10.1.0**（2026-10-23）：新增步骤 L5 Notion 排产台账归档（仅文本规范）
 - **v10.0.0**（2026-10-23）：基线重置，回落 5/26 验证版本，废弃五官写死 + 每页复述
 - v5.x / v4.9 / v4.8（2026-06-18 ~ 2026-10-14）：已废弃，从未推送远端
 - v4.5.0（2026-06-30）：建仓初版
