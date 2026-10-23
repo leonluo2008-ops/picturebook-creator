@@ -417,12 +417,15 @@ def main() -> int:
         tag = "【新建行】" if row.get("_created") else ""
         print(f"✓ 台账行{tag}：{sched_no}  page_id={page_id}")
 
-    # 防重复归档：该行已有创作产出 → 默认拦截
+    # 防重复归档：该行已有创作产出 → 默认拦截（--dry-run 只预告、不写，故放行）
     if has_archive(page_id) and not args.force:
-        raise SystemExit(
-            f"✗ 该行正文已有『📚 创作产出』段落，为防重复归档已拦截。\n"
-            f"  确认要再加一段（例如 L4 重出后补档）→ 加 --force。"
-        )
+        if args.dry_run:
+            print("  ⚠ 该行正文已有『📚 创作产出』段落 —— 真跑会被拦截（需 --force），本次是 --dry-run 预览")
+        else:
+            raise SystemExit(
+                f"✗ 该行正文已有『📚 创作产出』段落，为防重复归档已拦截。\n"
+                f"  确认要再加一段（例如 L4 重出后补档）→ 加 --force。"
+            )
 
     if not (args.narration and args.l4):
         raise SystemExit("✗ 归档需要 --narration 和 --l4（或用 --locate 只查看行）")
