@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 10.9.3
+version: 10.9.4
 required_environment_variables:
   - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、绘本台账、检查台账、存入台账。"
@@ -849,9 +849,10 @@ python3 scripts/notion_archive.py --word day --locate
 #    · 台账已有该核心词的行 → 直接复用,绝不重复建行
 #    · 台账没有该行 → 自动建行(排产号自动取 B###+1)
 
-# 2) 归档正文(heading + 选定标题/简介 + 旁白表 + L4 全文 + 回读校验)
+# 2) 归档正文(heading + 选定标题(中英两行)/简介 + 旁白表 + L4 全文 + 回读校验)
 python3 scripts/notion_archive.py --word day \
-    --title '选定标题全文' \
+    --title 'Here We Go, "day"' \
+    --title-cn '一起学 day' \
     --brief '选定简介全文' \
     --narration /tmp/narration.md \
     --l4 /tmp/l4.md \
@@ -866,7 +867,7 @@ python3 scripts/notion_archive.py --word day \
 | 参数 | 说明 |
 |---|---|
 | `--word` | **必填**,台账「核心词」列精确匹配 |
-| `--title` / `--brief` | 选定标题 / 选定简介,写正文各一段 |
+| `--title` / `--title-cn` / `--brief` | 英文标题 / 中文标题 / 选定简介。「选定标题」段固定写两行:`英文标题:…`+`中文标题:…`——台账中英都留档,生图提示词只提取中文标题(L4 封面标准不变) |
 | `--narration` | 旁白文件:markdown 表 `| 页码 | 英文 | 中文 |`(表头/分隔行自动跳过)或 JSON |
 | `--l4` | L4 生图提示词纯文本全文 |
 | `--date` | 归档日期,默认今天 |
@@ -880,7 +881,7 @@ python3 scripts/notion_archive.py --word day \
 
 脚本固定按下列顺序写入,并在最后回读校验(缺失项直接 exit 1):
 1. `heading_2`:`📚 创作产出(YYYY-MM-DD 归档)`
-2. `paragraph`:选定标题 / 选定简介
+2. `paragraph`:选定标题(两行:英文标题/中文标题) / 选定简介
 3. `heading_3`:双语旁白 → `table` 块(3 列,首行表头)
 4. `heading_3`:L4 生图提示词 → **一个** `code` 块；超过 1900 字时按行边界切成多条 `rich_text` 放进**同一个** block（页面上显示为一整块，不会断成两截）
 5. GET `/v1/pages/{page_id}/markdown` 回读,核对 heading / 旁白首行 / L4 场景锚点 / 核心词

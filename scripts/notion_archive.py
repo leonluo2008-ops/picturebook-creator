@@ -10,7 +10,8 @@
 
 2) 完整归档（L4 确认后的默认动作）
    python3 scripts/notion_archive.py --word day \
-       --title '一起学 DAY / English: Let us Learn "DAY"' \
+       --title 'Let us Learn "DAY"' \
+       --title-cn '一起学 DAY' \
        --brief '太阳升起是 day，玩耍的日子是 day……' \
        --narration narration.md \
        --l4 l4.md \
@@ -327,10 +328,15 @@ def table_block(rows: list[tuple[str, str, str]]) -> dict:
     }
 
 
-def build_blocks(date: str, title: str, brief: str, narration: list, l4: str) -> list:
+def build_blocks(date: str, title: str, title_cn: str, brief: str, narration: list, l4: str) -> list:
     blocks = [{"type": "heading_2", "heading_2": {"rich_text": rt(f"📚 创作产出（{date} 归档）")}}]
-    if title:
-        blocks.append({"type": "paragraph", "paragraph": {"rich_text": rt("选定标题：" + title)}})
+    if title or title_cn:
+        lines = ["选定标题："]
+        if title:
+            lines.append("英文标题：" + title)
+        if title_cn:
+            lines.append("中文标题：" + title_cn)
+        blocks.append({"type": "paragraph", "paragraph": {"rich_text": rt("\n".join(lines))}})
     if brief:
         blocks.append({"type": "paragraph", "paragraph": {"rich_text": rt("选定简介：" + brief)}})
     blocks.append({"type": "heading_3", "heading_3": {"rich_text": rt("双语旁白")}})
@@ -349,6 +355,10 @@ def append_blocks(page_id: str, blocks: list) -> int:
         api(f"/v1/blocks/{page_id}/children", "PATCH", {"children": batch})
         written += len(batch)
     return written
+
+
+def _combined_title(title: str, title_cn: str) -> str:
+    return "\n".join(x for x in (title, title_cn) if x)
 
 
 def backfill_props(page_id: str, title: str, brief: str) -> None:
@@ -388,7 +398,9 @@ def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="picturebook-creator L5：Notion 排产台账归档")
     ap.add_argument("--word", required=True, help="核心词，用于在台账『核心词』列精确匹配")
-    ap.add_argument("--title", default="", help="选定标题（写入正文一段）")
+    ap.add_argument("--title", default="", help="英文标题（选定标题段第一行）")
+    ap.add_argument("--title-cn", default="", dest="title_cn",
+                    help="中文标题（选定标题段第二行；生图只提取中文标题，但台账必须中英都留档）")
     ap.add_argument("--brief", default="", help="选定简介（写入正文一段）")
     ap.add_argument("--narration", help="旁白 md/json 文件")
     ap.add_argument("--l4", help="L4 生图提示词纯文本文件")
@@ -447,7 +459,7 @@ def main() -> int:
 
     narration = parse_narration(args.narration)
     l4 = Path(args.l4).read_text(encoding="utf-8")
-    blocks = build_blocks(date, args.title, args.brief, narration, l4)
+    blocks = build_blocks(date, args.title, args.title_cn, args.brief, narration, l4)
 
     if args.dry_run:
         print(f"[dry-run] 将写入 {len(blocks)} 个顶层 block：")
@@ -462,7 +474,7 @@ def main() -> int:
         if args.attr_title or args.attr_brief:
             props = {}
             if args.attr_title:
-                props["选定标题"] = {"rich_text": rt(args.title)}
+                props["选定标题"] = {"rich_text": rt(_combined_title(args.title, args.title_cn))}
             if args.attr_brief:
                 props["选定简介"] = {"rich_text": rt(args.brief)}
             print("[dry-run] 另将回填属性：" + "、".join(props) if props else "")
@@ -474,7 +486,9 @@ def main() -> int:
 
     # 3) 可选属性回填
     if args.attr_title or args.attr_brief:
-        backfill_props(page_id, args.title if args.attr_title else "", args.brief if args.attr_brief else "")
+        backfill_props(page_id,
+                       _combined_title(args.title, args.title_cn) if args.attr_title else "",
+                       args.brief if args.attr_brief else "")
         print("✓ 属性回填完成")
 
     # 4) 回读校验
