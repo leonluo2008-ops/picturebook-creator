@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 10.10.1
+version: 10.10.2
 required_environment_variables:
   - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、绘本台账、检查台账、存入台账。"

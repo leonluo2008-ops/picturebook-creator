@@ -34,7 +34,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from notion_archive import load_key, resolve_row  # 复用 key 读取与台账查行链路
+from notion_archive import load_key, resolve_row, resolve_data_source  # 复用 key/台账查行/数据源解析链路
 
 # 出网铁律：默认挂本机代理，环境里已有则以环境为准
 os.environ.setdefault("HTTP_PROXY", "http://127.0.0.1:7897")
@@ -118,7 +118,7 @@ def download(url: str, dest: str) -> str:
 
 def link_to_ledger(asset: dict, word: str) -> str:
     """把资产行 relation 到核心词所在台账行（幂等）。返回排产号。"""
-    ledger = resolve_row(None, word, False, "", "")
+    ledger = resolve_row(resolve_data_source(), word, False, "", "")
     page_id, sched_no = ledger["id"], ledger.get("_排产号", "")
     if page_id in asset["relations"]:
         return f"{sched_no}（已关联，跳过）"

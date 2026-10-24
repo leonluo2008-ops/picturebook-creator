@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v10.10.2 — 2026-10-24 · asset_ref.py --link-word 首战修复
+
+- 修复：link_to_ledger 独立调用时数据源未解析（resolve_row(None,…) → POST /v1/data_sources/None/query 400）
+- 现先走 resolve_data_source() 再查行；bike 行幂等回归（已关联，跳过）通过
+
 ## v10.10.1 — 2026-10-24 · 资产图分析三步走（超时坑）
 
 - 资产图分析固化：下载到本地 → PIL 压缩（长边≤1024，RGB JPG q85-90）→ 视觉识别
