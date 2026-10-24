@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 10.9.0
+version: 10.9.1
 required_environment_variables:
   - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、故事绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本。"
@@ -929,7 +929,7 @@ python3 scripts/notion_archive.py --word day \
 1. `--word <词> --locate` 拿行 page_id(清单批量时先全部定位一遍,确认每本都有既有行、拿到页 id,再动笔)。
 2. GET `/v1/pages/{page_id}/markdown` 拉旧档存盘,从中**逐字提取**选定标题、选定简介、旁白表。重整只重写 L4——标题/简介/旁白/角色/场景锚点一律保留原创作,不借机重造;L4 里「旁白:」行照抄台账旁白,发现台账旁白行内部口径不一致也以台账为准,不改台账。
 3. 按当前规范给旧 L4 补缺口(常见缺口清单见下),产出新 L4 纯文本文件(整本一个代码块的内容,不含围栏)。
-4. `--force` 覆盖归档,标题/简介用第 2 步提取的原文传回;旁白存 markdown 表文件传 `--narration`。
+4. 真覆盖=先删后归:`--force` 是**追加**不是覆盖(照它做会把新旧两段并排留在页面上)——先用 DELETE `/v1/blocks/{id}` 从「📚 创作产出」heading_2 起把旧块全部删光,再走**正常归档**(不加 `--force`;标题/简介用第 2 步提取的原文传回,旁白存 markdown 表文件传 `--narration`)。
 5. 回读校验:逐本拉回 markdown,按项计数——每页带「构图要求:」、封面条含「封面(」标题条目、3:4/16:9 齐全、旁白行数完整、**画面字母形态与当页旁白一致**(跑 `tools/l4_case_check.py`)——全过才算这本完成。
 
 **旧档常见规范缺口(重整时逐条对):**
@@ -1576,6 +1576,7 @@ python3 scripts/notion_archive.py --word day \
 
 - 本 skill 主仓托管在 GitHub `leonluo2008-ops/picturebook-creator`（Gitee 同名仓库只是镜像，不要从 Gitee 拉）。本机 skill 目录即该仓的 git 检出，工作分支按日期命名（如 `PC1024-3`）。
 - **改 SKILL.md / references/ 之前，先 `git fetch origin <工作分支>` 并检出远程最新版，在其上修改**——本地未提交的散装补丁会被 checkout 覆盖，先改后同步等于白做一轮。
+- **只在 live 检出上改**（`skill_view` 返回的 `_source_path` 指向的路径）。规则写进 `.backup-*` / `.curator_backups` 等旁路副本等于没写——live 加载不到、git 历史也没有它，事后排查还会被备份里的「新规则」误导成已装填。改前 `pwd` 确认目录，改后 `git status` 确认变更落在 tracked 文件上。
 - 出网拉取/推送需挂代理（127.0.0.1:7897）。
 - 改完更新 SKILL.md frontmatter `version`（patch 位递增）并一次提交推送。SKILL.md 正文与 README 不写变更历史条目——skill 内只保留唯一当前有效的规则（用户红线），变更历史由 git 历史承载。
 - 规则写「规则 + 判据」，不写事故叙事与具体绘本案例；同一坑第二次出现时合并进既有条目，不新增第二条。
