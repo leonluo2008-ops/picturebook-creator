@@ -68,13 +68,14 @@ def check_rows(rows, words):
                         issues.append(f"[{page}] 中文列'{tok}'({kind})应为'{expected}'({reason})")
 
         # --- 标点对应 ---
-        # 封面行是标题: GB/T 15834-2011 B.4 标题末尾通常不用标点,可用问号/叹号/省略号,
-        # 两列各自独立决定,不作标点对应要求(机审豁免)
+        # 封面行是标题: GB/T 15834-2011 B.4 标题末尾通常不用标点(豁免)。
+        # 正文行也只做软提醒不当硬闸: 中英文句界不一一对应是常态
+        # (英文两句中文一句流水更顺口), 逐句断句节奏由 L3.5 口语门禁(人声朗读)裁决。
         if not is_cover:
             en_marks = re.findall(r'[.!?]', en)
             cn_marks = re.findall(r'[。！？]', cn)
             if len(en_marks) != len(cn_marks):
-                issues.append(f"[{page}] 句尾标点数量不对应: 英文{len(en_marks)}个{en_marks} vs 中文{len(cn_marks)}个{cn_marks}")
+                warns.append(f"[{page}] 中英句末标点数不对应(英文{len(en_marks)} vs 中文{len(cn_marks)})——仅提示,读着顺口就不改")
     return issues, warns
 
 
