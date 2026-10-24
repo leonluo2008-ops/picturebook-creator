@@ -343,10 +343,10 @@ def build_blocks(date: str, title: str, title_cn: str, brief: str, narration: li
     blocks.append({"type": "heading_3", "heading_3": {"rich_text": rt("双语旁白")}})
     blocks.append(table_block(narration))
     blocks.append({"type": "heading_3", "heading_3": {"rich_text": rt("L4 生图提示词")}})
-    blocks.extend(code_blocks(l4))
-    # 资产链接块跟在 L4 代码块之后独立成块（用户拍板 v10.11.1）：
-    # 提示词文本保持纯净——链接绝不能注进代码块，否则整块复制提示词时会拖进 URL。
+    # 资产提及块放「L4 生图提示词」标题之下、代码块之前（用户拍板 v10.11.2）；
+    # 提示词文本保持纯净——链接绝不进代码块，否则整块复制提示词时会拖进 URL。
     blocks.extend(asset_blocks or [])
+    blocks.extend(code_blocks(l4))
     return blocks
 
 
@@ -388,8 +388,8 @@ def asset_mention_blocks(names: list) -> list:
     out = []
     for n in names:
         a = asset_page(n)
-        lead = f"参考图[{a['use']}]（点下方资产页取图，右键图片可复制/另存）：" if a["use"] \
-               else "参考图（点下方资产页取图，右键图片可复制/另存）："
+        lead = f"参考图[{a['use']}]-点链接查看参考图：" if a["use"] \
+               else "参考图-点链接查看参考图："
         out.append({"type": "paragraph", "paragraph": {"rich_text": [
             {"type": "text", "text": {"content": lead}},
             {"type": "mention", "mention": {"type": "page", "page": {"id": a["id"]}}},
