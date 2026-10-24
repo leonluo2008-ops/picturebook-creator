@@ -84,12 +84,19 @@ def load_key() -> str:
     key = os.environ.get("NOTION_API_KEY")
     if key:
         return key.strip()
-    for env_path in (Path.home() / ".hermes" / ".env", Path(".env")):
+    # 查找顺序: 活跃 Hermes env(Windows AppData) → 旧 ~/.hermes → 当前目录
+    candidates = []
+    localappdata = os.environ.get("LOCALAPPDATA")
+    if localappdata:
+        candidates.append(Path(localappdata) / "hermes" / ".env")
+    candidates.append(Path.home() / ".hermes" / ".env")
+    candidates.append(Path(".env"))
+    for env_path in candidates:
         if env_path.exists():
             for line in env_path.read_text(encoding="utf-8").splitlines():
                 if line.strip().startswith("NOTION_API_KEY"):
                     return line.split("=", 1)[1].strip().strip('"').strip("'")
-    sys.exit("✗ 找不到 NOTION_API_KEY（请在 ~/.hermes/.env 或环境变量中配置）")
+    sys.exit("✗ 找不到 NOTION_API_KEY（请在 %LOCALAPPDATA%\\hermes\\.env 或环境变量中配置）")
 
 
 KEY = None
