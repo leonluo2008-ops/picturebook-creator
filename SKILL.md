@@ -1,9 +1,9 @@
 ---
 name: picturebook-creator
-version: 10.9.2
+version: 10.9.3
 required_environment_variables:
   - NOTION_API_KEY
-description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、故事绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、存量重整、台账归档。"
+description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、绘本台账、检查台账、存入台账。"
 ---
 
 # 绘本创作专家 Skill
@@ -14,10 +14,10 @@ description: "绘本创作专家:把用户的模糊想法变成可直接交给AI
 
 ## 触发词(满足任一即触发本skill)
 
-- 绘本创作、画绘本、故事绘本
+- 绘本创作、画绘本
 - 儿童绘本、picturebook、绘本
 - 领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本
-- 生图提示词、整理提示词、存量重整(重做已归档绘本的L4)、台账归档(写入Notion排产台账)
+- 生图提示词、整理提示词、绘本台账(检查台账/存入台账等 Notion 排产台账操作)
 
 ---
 
@@ -916,6 +916,8 @@ python3 scripts/notion_archive.py --word day \
 - `table` 块:**不要** `cells` 字段;必须带 `children:[{type:"table_row",table_row:{cells:[[rich_text数组],[...],[...]]}}]`,单元格是 rich_text 数组直接放,外面不再包 `{type:rich_text,...}`;`has_column_header: true`。
 - `rich_text.content` 单条上限 2000 字符 → 脚本按 1900 按行切段；**切出来的是同一 code 块里的多条 rich_text，不是多个 code 块**（后者会在页面上断成两截）。
 - 台账库需已 Connect 到 integration,否则 404 `object_not_found`。
+- 台账超 100 行时 query 必须翻页：响应带 `has_more`/`next_cursor`，带着 cursor 继续 POST 直到取完——按核心词查不到行，先翻完全部页再下「无此行」结论。
+- 改表格单行用 `PATCH /v1/blocks/{table_row块id}`，body 为 `{table_row:{cells:[[cell],...]}}`；cell 是 rich_text 对象数组（`{type:"text",text:{content:"…"}}`），外面不能再包 `{type:rich_text}` 包装——多包一层必 400。
 
 #### 环境要求
 
@@ -1581,4 +1583,6 @@ python3 scripts/notion_archive.py --word day \
 - **只在 live 检出上改**（`skill_view` 返回的 `_source_path` 指向的路径）。规则写进 `.backup-*` / `.curator_backups` 等旁路副本等于没写——live 加载不到、git 历史也没有它，事后排查还会被备份里的「新规则」误导成已装填。改前 `pwd` 确认目录，改后 `git status` 确认变更落在 tracked 文件上。
 - 出网拉取/推送需挂代理（127.0.0.1:7897）。
 - 改完更新 SKILL.md frontmatter `version`（patch 位递增）并一次提交推送。SKILL.md 正文与 README 不写变更历史条目——skill 内只保留唯一当前有效的规则（用户红线），变更历史由 git 历史承载。
+- **版本号三处口径同步**：frontmatter `version`、README「当前版本」区、CHANGELOG 顶部条目一起更新——只改 frontmatter 不动 README/CHANGELOG，下一轮体检就得补账（实测落后过 3 个版本才发现）。
+- **怀疑某条规则「到底装没装进 live」时，`git log -S '<规则关键词>' --all` 查提交历史**：空输出=从未进过 live 仓。备份/旁路副本里长得一样的文字不构成「已装填」证据。
 - 规则写「规则 + 判据」，不写事故叙事与具体绘本案例；同一坑第二次出现时合并进既有条目，不新增第二条。
