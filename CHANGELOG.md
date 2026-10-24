@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v10.10.0 — 2026-10-24 · 参考图资产图库整合（用户拍板）
+
+- 新增 `scripts/asset_ref.py`：--list / --name 精确定位 / --download 本地取图 / --link-word relation 台账行（幂等）
+- Notion「绘本资产图库」字段口径固化（资产名称/参考图片/资产类型/使用定位/来源链接/复用说明/关联排产）
+- 流程接入：L1 找图复用、L4 交付给生图的人指路（页面链接+取图命令）、L5 归档后逐资产 --link-word
+- 实测坑：资产库 query 必须走 Notion-Version 2022-06-28（data_sources 为空）；S3 签名 URL 只支持 GET、HEAD 403、临时签名现取现用
+
 ## v10.9.4 — 2026-10-24 · 台账标题双语两行（用户拍板）
 
 - notion_archive.py 新增 `--title-cn`：「选定标题」段固定写两行（`英文标题：…`／`中文标题：…`），`--title` 只承载英文标题
