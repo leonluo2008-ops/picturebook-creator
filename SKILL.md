@@ -1,6 +1,6 @@
 ---
 name: picturebook-creator
-version: 10.10.2
+version: 10.11.0
 required_environment_variables:
   - NOTION_API_KEY
 description: "绘本创作专家:把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。支持两种模式:故事模式(叙事弧线)和领读模式(自然拼读/单词认读)。核心能力:标题创作、简介创作、双语旁白创作、角色定型、生图提示词生成、领读页面结构设计。触发词:绘本创作、画绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、绘本台账、检查台账、存入台账。"
@@ -900,7 +900,12 @@ python3 scripts/notion_archive.py --word day \
     --brief '选定简介全文' \
     --narration /tmp/narration.md \
     --l4 /tmp/l4.md \
+    --asset '蜜桃猫-二创' \
     --date 2026-10-24
+
+#    · --asset <资产名>(可多次): 把资产详情页链接注入 L4「参考图约定」段,随提示词一起
+#      展示给生图的人(点开链接→右键图复制/另存)。⚠️ 不嵌图片 block、不贴 S3 图链——
+#      file URL 是约 1 小时过期的临时签名,外链必裂;资产页链接才是永久的(用户拍板 v10.11.0)。
 
 # 3) 只想看会写什么(不发任何写请求)
 ... 同上 ... --dry-run

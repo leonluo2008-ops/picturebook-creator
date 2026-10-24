@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v10.11.0 — 2026-10-24 · 归档注入资产页链接（用户拍板）
+
+- notion_archive.py 新增 `--asset 资产名`（可多次）：资产详情页链接注入 L4「参考图约定」段，带使用定位标签与取图说明
+- 设计取舍：S3 file URL 为约 1 小时临时签名（HEAD 403/隔天必裂），File Upload 内嵌方案实测端点 400 后按用户拍板改为只注入永久页面链接
+- lake（B241）重归档验证：链接注入 + 回读 7/7 全过
+
 ## v10.10.2 — 2026-10-24 · asset_ref.py --link-word 首战修复
 
 - 修复：link_to_ledger 独立调用时数据源未解析（resolve_row(None,…) → POST /v1/data_sources/None/query 400）

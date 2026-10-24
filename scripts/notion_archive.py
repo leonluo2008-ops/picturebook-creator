@@ -103,7 +103,7 @@ def load_key() -> str:
 KEY = None
 
 
-def api(path: str, method: str = "GET", body=None):
+def api(path: str, method: str = "GET", body=None, version: str = ""):
     global KEY
     if KEY is None:
         KEY = load_key()
@@ -113,7 +113,7 @@ def api(path: str, method: str = "GET", body=None):
         data=json.dumps(body).encode("utf-8") if body is not None else None,
         headers={
             "Authorization": "Bearer " + KEY,
-            "Notion-Version": NOTION_VERSION,
+            "Notion-Version": version or NOTION_VERSION,
             "Content-Type": "application/json",
         },
     )
@@ -346,6 +346,52 @@ def build_blocks(date: str, title: str, title_cn: str, brief: str, narration: li
     return blocks
 
 
+# ─────────────────────── 资产参考图链接注入（v10.11.0） ───────────────────────
+# 资产图库的 S3 file URL 是临时签名（约 1 小时过期），外链必裂，不能贴页面；
+# 资产详情页链接永不过期 —— 把它注入 L4 头部「参考图约定」段，随提示词一起被复制，
+# 生图的人点开链接进资产页取图（右键复制/另存），无需账号外共享。
+
+ASSET_DB_ID = os.environ.get("NOTION_ASSET_DB_ID", "46d08001922c4ea9b329c1ac43977d2e")
+ASSET_API_VERSION = "2022-06-28"  # 资产图库 query 仅老版头可用（实测 data_sources 为空）
+
+
+def asset_page_link(name: str) -> str:
+    """按「资产名称」精确匹配资产行，返回注入 L4 的链接行。多行命中即停。"""
+    hits, cursor = [], None
+    while True:
+        body = {"page_size": 100}
+        if cursor:
+            body["start_cursor"] = cursor
+        res = api(f"/v1/databases/{ASSET_DB_ID}/query", "POST", body, version=ASSET_API_VERSION)
+        for row in res.get("results", []):
+            t = row.get("properties", {}).get("资产名称", {}).get("title", [])
+            if "".join(x.get("plain_text", "") for x in t) == name:
+                hits.append(row)
+        if not res.get("has_more"):
+            break
+        cursor = res.get("next_cursor")
+    if not hits:
+        raise SystemExit(f"✗ 资产图库没有「{name}」的行（先在 Notion 建行传图）")
+    if len(hits) > 1:
+        raise SystemExit(f"✗ 资产「{name}」命中 {len(hits)} 行，禁止猜：先在 Notion 改名区分")
+    row = hits[0]
+    use = ((row.get("properties", {}).get("使用定位", {}) or {}).get("select") or {}).get("name", "")
+    tag = f"[{use}]" if use else ""
+    return (f"角色参考图{tag}：{name} 资产页 {row.get('url', '')}"
+            f"（浏览器打开此页面，右键图片可复制/另存；角色一致性以此图为最终依据）")
+
+
+def inject_asset_links(l4: str, names: list) -> str:
+    """把资产页链接行插进 L4 的【参考图约定】段末；找不到该段就放最前面。"""
+    add = "\n".join(asset_page_link(n) for n in names)
+    parts = l4.split("\n\n")
+    for i, p in enumerate(parts):
+        if p.startswith("【参考图约定】"):
+            parts[i] = p.rstrip() + "\n" + add
+            return "\n\n".join(parts)
+    return add + "\n\n" + l4
+
+
 # ─────────────────────────── 写入 / 回读 ──────────────────────────
 def append_blocks(page_id: str, blocks: list) -> int:
     """分批 append（≤90 块/请求），返回写入块数。"""
@@ -404,6 +450,8 @@ def main() -> int:
     ap.add_argument("--brief", default="", help="选定简介（写入正文一段）")
     ap.add_argument("--narration", help="旁白 md/json 文件")
     ap.add_argument("--l4", help="L4 生图提示词纯文本文件")
+    ap.add_argument("--asset", action="append", default=[], metavar="资产名",
+                    help="把资产图库该资产的详情页链接注入 L4 参考图约定段（可多次；S3 图链临时会过期，故只注入永久页面链接）")
     ap.add_argument("--date", default=None, help="归档日期 YYYY-MM-DD，默认今天")
     ap.add_argument("--page-id", default=None, help="直接指定台账 row 的 page_id（跳过查行）")
     ap.add_argument("--attr-title", action="store_true", help="属性回填『选定标题』")
@@ -459,6 +507,10 @@ def main() -> int:
 
     narration = parse_narration(args.narration)
     l4 = Path(args.l4).read_text(encoding="utf-8")
+    if args.asset:
+        l4 = inject_asset_links(l4, args.asset)
+        for n in args.asset:
+            print(f"  · 资产「{n}」链接已注入 L4 参考图约定段", file=sys.stderr)
     blocks = build_blocks(date, args.title, args.title_cn, args.brief, narration, l4)
 
     if args.dry_run:
