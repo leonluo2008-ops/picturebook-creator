@@ -67,6 +67,16 @@ def check_rows(rows, words):
                         kind = 'Title Case' if tok == tok.capitalize() else ('全大写' if tok.isupper() else '混合形态')
                         issues.append(f"[{page}] 中文列'{tok}'({kind})应为'{expected}'({reason})")
 
+        # --- 目标词双语同现检查(硬闸) ---
+        # 英文列含目标词的行, 中文列必须同现目标词——词义双关是领读绘本的核心机制,
+        # 词在中文里消失等于这页没教(better/fast/P8互动页均踩过此坑)
+        en_low = en.lower()
+        for w in words:
+            if re.search(r'\b' + re.escape(w.lower()) + r'\b', en_low) and not is_cover:
+                if not re.search(r'\b' + re.escape(w.lower()) + r'\b', cn.lower()):
+                    issues.append(f"[{page}] 英文列含目标词'{w}'但中文列未出现——目标词双语同现缺失(领读核心机制)")
+
+
         # --- 标点对应 ---
         # 封面行是标题: GB/T 15834-2011 B.4 标题末尾通常不用标点(豁免)。
         # 正文行也只做软提醒不当硬闸: 中英文句界不一一对应是常态

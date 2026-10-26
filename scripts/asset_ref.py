@@ -117,12 +117,16 @@ def download(url: str, dest: str) -> str:
 
 
 def link_to_ledger(asset: dict, word: str) -> str:
-    """把资产行 relation 到核心词所在台账行（幂等）。返回排产号。"""
+    """把资产行 relation 到核心词所在台账行（幂等）。返回排产号。
+
+    Notion 关系属性写入格式是 [{id: ...}] 对象数组；读回来的 relations
+    有时是裸 id 字符串列表，直接拼回 body 必 400，逐个包成对象再发。
+    """
     ledger = resolve_row(resolve_data_source(), word, False, "", "")
     page_id, sched_no = ledger["id"], ledger.get("_排产号", "")
     if page_id in asset["relations"]:
         return f"{sched_no}（已关联，跳过）"
-    body = {"properties": {"关联排产": {"relation": asset["relations"] + [{"id": page_id}]}}}
+    body = {"properties": {"关联排产": {"relation": [{"id": rid} for rid in asset["relations"]] + [{"id": page_id}]}}}
     _req(f"/v1/pages/{asset['id']}", "PATCH", body)
     return sched_no
 
