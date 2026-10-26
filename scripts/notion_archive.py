@@ -492,8 +492,21 @@ def main() -> int:
         return 0
     else:
         ds_id = resolve_data_source()
-        row = resolve_row(ds_id, args.word, not args.no_create, args.word_type, args.sched_no)
-        page_id, sched_no = row["id"], row.get("_排产号", "")
+        if args.dry_run and not args.no_create:
+            # --dry-run 绝不建行：查不到行只预告预计排产号（审计发现 P0-1：干跑曾真实写入）
+            probe = query_rows(ds_id, args.word)
+            if len(probe) > 1:
+                nums = [rich_text_of(r, "排产号") or r["id"] for r in probe]
+                raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
+            if not probe:
+                print(f"· [dry-run] 台账无「核心词 = {args.word}」的行 → 真跑将自动建行（排产号预计 {next_sched_no(ds_id)}），本次干跑不写入")
+            row = probe[0] if probe else None
+        else:
+            row = resolve_row(ds_id, args.word, not args.no_create, args.word_type, args.sched_no)
+        if row is None:
+            print("[dry-run] 无既有行可预览正文写入，结束（未写入任何数据）")
+            return 0
+        page_id, sched_no = row["id"], row.get("_排产号", rich_text_of(row, "排产号"))
         tag = "【新建行】" if row.get("_created") else ""
         print(f"✓ 台账行{tag}：{sched_no}  page_id={page_id}")
 
