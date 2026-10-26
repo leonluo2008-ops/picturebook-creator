@@ -135,20 +135,32 @@ def _title_of_page(page: dict) -> str:
 
 
 def discover_ledger() -> tuple[str, str]:
-    """搜索『中控』→ 中控台页 → child_database → data_sources[].id"""
-    res = api("/v1/search", "POST", {"query": "中控", "page_size": 20})
-    page = next(
-        (o for o in res.get("results", []) if o.get("object") == "page" and "中控" in _title_of_page(o)),
-        None,
-    )
-    if not page:
-        raise SystemExit("✗ 找不到「中控台」页面，确认 integration 已 Connect 到该页面")
-    pid = page["id"]
-    kids = api(f"/v1/blocks/{pid}/children?page_size=100")
-    db = next((b for b in kids.get("results", []) if b.get("type") == "child_database"), None)
-    if not db:
-        raise SystemExit("✗ 中控台页正文没有 child_database（台账库）")
-    db_id = db["id"]
+    """搜索『中控』→ 中控台页 → child_database → data_sources[].id
+
+    NOTION_CONTROL_PAGE_ID 直接指定中控台页（跳过搜索）；NOTION_LEDGER_DB_ID 直接指定台账库
+    （跳过 child_database 发现）——审计 P2-1：两变量此前仅写在 docstring，代码从不读取。
+    """
+    pid = os.environ.get("NOTION_CONTROL_PAGE_ID")
+    if pid:
+        print("  · 中控台页来自 NOTION_CONTROL_PAGE_ID", file=sys.stderr)
+    else:
+        res = api("/v1/search", "POST", {"query": "中控", "page_size": 20})
+        page = next(
+            (o for o in res.get("results", []) if o.get("object") == "page" and "中控" in _title_of_page(o)),
+            None,
+        )
+        if not page:
+            raise SystemExit("✗ 找不到「中控台」页面，确认 integration 已 Connect 到该页面")
+        pid = page["id"]
+    db_id = os.environ.get("NOTION_LEDGER_DB_ID")
+    if db_id:
+        print("  · 台账库来自 NOTION_LEDGER_DB_ID", file=sys.stderr)
+    else:
+        kids = api(f"/v1/blocks/{pid}/children?page_size=100")
+        db = next((b for b in kids.get("results", []) if b.get("type") == "child_database"), None)
+        if not db:
+            raise SystemExit("✗ 中控台页正文没有 child_database（台账库）")
+        db_id = db["id"]
     meta = api(f"/v1/databases/{db_id}")
     sources = meta.get("data_sources") or []
     if not sources:
@@ -238,7 +250,7 @@ def has_archive(page_id: str) -> bool:
         md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
     except SystemExit:
         return False
-    return "📚 创作产出" in md
+    return ("📚 创作产出" in md) or ("双语旁白" in md and "生图提示词" in md)
 
 
 def rich_text_of(page: dict, prop: str) -> str:
@@ -272,6 +284,8 @@ def parse_narration(path: str) -> list[tuple[str, str, str]]:
 
 # ─────────────────────────── block 构造 ──────────────────────────
 def rt(text: str) -> list:
+    if len(text) > 2000:
+        print(f"  ⚠ 文本超 2000 字（{len(text)}），已截断——检查来源是否异常", file=sys.stderr)
     return [{"type": "text", "text": {"content": text[:2000]}}]
 
 
@@ -435,6 +449,12 @@ def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
     anchors = re.findall(r"场景锚点[:：]\s*([^\n，,]+)", l4)
     if anchors and anchors[-1].strip() not in md:
         missing.append(f"L4 场景锚点『{anchors[-1].strip()}』")
+    # --- 逐页对账（审计 P1-1：只锚首行+末锚点检不出中间页丢失/截断）---
+    for label, pat in (("旁白", "旁白[:：]"), ("构图要求", "构图要求[:：]"), ("比例", "比例[:：]")):
+        n_src = len(re.findall(pat, l4))
+        n_md = len(re.findall(pat, md))
+        if n_src and n_md != n_src:
+            missing.append(f"L4『{label}:』计数不符——源 {n_src} 条 vs 归档 {n_md} 条（疑似有页丢失/截断）")
     # 核心词校验看台账行属性（正文里不一定会出现该词，尤其新建行）
     try:
         row_word = rich_text_of(api(f"/v1/pages/{page_id}"), "核心词")

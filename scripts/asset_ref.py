@@ -36,9 +36,11 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from notion_archive import load_key, resolve_row, resolve_data_source  # 复用 key/台账查行/数据源解析链路
 
-# 出网铁律：默认挂本机代理，环境里已有则以环境为准
-os.environ.setdefault("HTTP_PROXY", "http://127.0.0.1:7897")
-os.environ.setdefault("HTTPS_PROXY", "http://127.0.0.1:7897")
+# 代理策略（审计 P2-2 修正）：不再无条件注入 127.0.0.1:7897——迁移环境无 clash 时会全军覆没。
+# 环境已有代理则以环境为准；没有就直连。确需本机代理时显式 export 或运行前设 PROXY_IRONCLAD=1。
+if os.environ.get("PROXY_IRONCLAD") == "1":
+    os.environ.setdefault("HTTP_PROXY", "http://127.0.0.1:7897")
+    os.environ.setdefault("HTTPS_PROXY", "http://127.0.0.1:7897")
 
 NOTION_BASE = "https://api.notion.com"
 ASSET_DB_ID = "46d08001922c4ea9b329c1ac43977d2e"   # 绘本资产图库
