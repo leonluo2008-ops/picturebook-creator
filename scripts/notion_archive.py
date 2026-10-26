@@ -436,6 +436,32 @@ def backfill_props(page_id: str, title: str, brief: str) -> None:
         api(f"/v1/pages/{page_id}", "PATCH", {"properties": props})
 
 
+def advance_status(page_id: str, target: str = "待生图") -> bool:
+    """归档成功后把「状态」推进到 target（默认待生图）并回读验证。
+
+    审计 C1 裁决（用户 2026-10-26）：状态推进并进脚本，不再由会话手工 PATCH。
+    状态列不存在或写入失败只告警不阻断——正文归档已成功，状态属排产侧辅助信息。
+    """
+    try:
+        page = api(f"/v1/pages/{page_id}")
+        props = page.get("properties") or {}
+        if "状态" not in props:
+            print("  ⚠ 台账行无「状态」列，跳过状态推进", file=sys.stderr)
+            return False
+        api(f"/v1/pages/{page_id}", "PATCH",
+            {"properties": {"状态": {"select": {"name": target}}}})
+        # 回读验证
+        after = api(f"/v1/pages/{page_id}")
+        got = ((after.get("properties", {}).get("状态") or {}).get("select") or {}).get("name", "")
+        if got == target:
+            return True
+        print(f"  ⚠ 状态回读不符：期望『{target}』实际『{got}』", file=sys.stderr)
+        return False
+    except SystemExit as e:
+        print(f"  ⚠ 状态推进失败（不影响归档正文）：{e}", file=sys.stderr)
+        return False
+
+
 def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
     """回读 markdown 校验，返回缺失项列表（空 = 通过）。"""
     md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
@@ -584,6 +610,9 @@ def main() -> int:
         print("✗ 回读校验未通过，缺失：" + "、".join(missing))
         return 1
     print(f"✓ 回读校验通过 —— 已归档 Notion（{sched_no}）")
+    # C1: 状态推进并进脚本（归档成功 → 待生图，回读验证）
+    if advance_status(page_id):
+        print("✓ 状态已推进：待生图")
     return 0
 
 
