@@ -936,7 +936,7 @@ EXIT=0 才准把提示词端给用户/归档；EXIT=1 按输出逐页修复后�
 | P4 | A big cat. | 大猫咪 cat。 |
 | P5 | A little cat on a mat. | 小猫咪 cat 坐在垫子上。 |
 | P6 | The cat and the hat! | 猫咪 cat 和帽子 hat！ |
-| P7 | Cat, hat, mat, bat — they all end with -at! | cat、hat、mat、bat——结尾都是 -at！ |
+| P7 | Cat, hat, mat, bat — they all say -AT! | cat、hat、mat、bat——它们都押 -at！ |
 | P8 | I love my cat. | 我爱我的猫咪 cat。 |
 ```
 #### L4 生图提示词产出(节选封面+P1+P5)
