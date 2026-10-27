@@ -4,7 +4,8 @@
 检查中英旁白表的大小写语法：
 1. 英文列：句首字母必须大写；全大写长句仅限单词展示页；封面英文目标词禁全大写(应 Title Case)
 2. 中文列：目标词形态跟随规则（CY/T 154-2017 第7节）
-   - 英文列是纯展示行(封面单词行, 如 Floor / Learn "way") → 中文列跟随同形态(Title Case 展示行跟随大写; 带句子的展示行不适用)
+   - 英文列是纯展示行(如 Floor / Learn "way") → 中文列跟随同形态
+   - 封面行(书名)整行按展示性文本处理 → 中文列跟随书名里目标词的形态(书名写 Towel, 中文列就写 Towel)
    - 其余(句子夹用, 含 P1 拆解行) → 中文列一律小写(7.1 普通词不承担英文句首大写)
 3. 句尾标点中英对应（. ! ? → 。！？）
 
@@ -21,11 +22,20 @@ def norm(token):
     return token.replace('-', '').replace('–', '')
 
 
-def en_display_form(en_cell, word):
-    """英文列若是该词的纯展示行(去掉引号/句末标点后只剩这一个词), 返回其原文形态; 否则 None。"""
+def en_display_form(en_cell, word, is_cover=False):
+    """英文列若是该词的纯展示行(去掉引号/句末标点后只剩这一个词), 返回其原文形态; 否则 None。
+
+    封面行例外: 书名整行是展示性文本(读者直接看到的标题), 目标词在书名里的写法
+    就是中文列该跟随的形态——书名写 A Soft Towel, 中文列就写 Towel。
+    """
     stripped = en_cell.strip().strip('"“”\'').rstrip('.!?。！？').strip()
     if re.fullmatch(r'[A-Za-z][A-Za-z\-]*', stripped) and norm(stripped).lower() == word.lower():
         return stripped
+    if is_cover:
+        for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', en_cell):
+            tok = m.group(0)
+            if norm(tok).lower() == word.lower():
+                return tok
     return None
 
 
@@ -53,7 +63,7 @@ def check_rows(rows, words):
         # --- 中文列目标词形态检查 (CY/T 154-2017 第7节) ---
         cn_tokens = re.findall(r'[A-Za-z][A-Za-z\-]*', cn)
         for w in words:
-            display = en_display_form(en, w)
+            display = en_display_form(en, w, is_cover)
             # 封面英文目标词禁全大写(2026-10-24 拍板: 封面 Title Case, 词形与内页一致可迁移)
             if is_cover and display and len(norm(display)) > 1 and display == display.upper():
                 issues.append(f"[{page}] 封面英文目标词'{display}'应为Title Case'{display.capitalize()}'(禁全大写,词形须与内页一致)")
