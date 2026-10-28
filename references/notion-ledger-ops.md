@@ -44,3 +44,16 @@ L4 全文通常是一个 code 块（5000+ 字符，内部已切成多段 rich_te
 ## 6. 批量写一律带重试
 
 一次会话要打几十次 API 时，把 `api()` 包成 3–5 次重试、退避 1.5s×n 再跑；瞬时 SSL/URLError 在这条链路上是常态，重试即可通过。一次性的清块/归档脚本单独跑，输出读全量（不要接 `| head` / `| tail`）。
+
+## 7. 资产行改名：脚本没有 rename，走 PATCH 标题
+
+`scripts/asset_ref.py` 只有 `--list / --name / --download / --link-word`，改名直接调它的 `_req`（老版头 `ASSET_API_VERSION` 已内置）：
+
+```python
+import asset_ref as ar
+ar._req(f"/v1/pages/{pid}", "PATCH",
+        {"properties": {"资产名称": {"title": [{"type": "text", "text": {"content": "新名"}}]}}})
+```
+
+- **改名即改匹配键**：`--name` 按「资产名称」精确匹配，改完旧名查不到、新名才查得到；relation 挂在 page id 上，改名不影响已挂的排产行，回读 `--list` 确认「关联排产」仍在。
+- 发现错别字**先改名再归档/挂链**——错名一旦写进交付说明或归档记录，之后每本都要跟着解释一遍。
