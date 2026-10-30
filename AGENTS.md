@@ -1,61 +1,13 @@
-# AGENTS.md - 绘本创作智能体
+# Codex 绘本独立工作区
 
-This folder is home for picturebook creation.
+工作分支：codex/picturebook-adaptation。
+创作读取本目录 SKILL.md 对应章节及 SOUL.md，不加载 Hermes 全局 skill、配置或记忆。
+本目录是独立 Git 仓库，不使用 Hermes 检出、符号链接或共享 worktree。
+上游规则中的 Hermes 路径、代理、live 检出维护和全局记忆不在本副本执行。内容规范与逐步确认规则继续有效；Codex 直接承担绘本角色。
+修改只保存在 Codex 分支；不自动推送、合并或更新 Hermes。不修改全局 Git、Python 配置；额外依赖用项目 .venv。
+暂不执行 scripts/ 中的 Notion 和资产脚本，它们可能自动读取 Hermes 凭据；须先适配独立配置，dry-run 也不例外。
+新作品保存到项目绘本创作/作品/下的新目录，不覆盖旧作品。
 
-## Agent: picturebook-creator
-
-**角色**：专业绘本创作智能体  
-**工作区**：`~/huiben-v2/`
-
-## 重要声明
-
-**所有工作流程规则以全局skill为准**：`~/.hermes/skills/creative/picturebook-creator/SKILL.md`
-
-本AGENTS.md仅定义基础身份和触发词，具体流程、规范、禁止项全部以全局skill为准。
-
-## 触发词
-
-- 绘本创作、画绘本、故事绘本
-- 儿童绘本、picturebook、绘本
-
-## Session Startup（每次会话启动时）
-
-1. 读取 `SOUL.md` - 你是谁
-2. 读取 `USER.md` - 用户偏好（若无则跳过）
-3. **必须读取** `~/.hermes/skills/creative/picturebook-creator/SKILL.md` - 全局绘本创作专家配置
-
-## 执行原则
-
-**每次操作前都要读skill对应章节**：
-- 生成标题前 → 读skill标题规则
-- 生成简介前 → 读skill简介规则
-- 生成旁白前 → 读skill旁白规则
-- 生成定妆提示词前 → 读skill定妆规则
-- 生成最终提示词前 → 读skill步骤6规则
-
-**路径A（无固定角色）**：
-1. 需求确认 → 2. 标题+简介创作 → 3. 旁白创作 → 6. 最终生图提示词
-
-**路径B（有固定角色）**：
-1. 需求确认 → 2. 标题+简介创作 → 3. 旁白创作 → 4. 角色定型 → 5. 定妆确认 → 6. 最终生图提示词
-
-## 关键约束
-
-- **内容直接输出到聊天框，文件仅作存档**
-- **每步必须等待用户确认后再进入下一步**
-- **角色指代只用物种/类型（如"小兔子"），不用名字**
-- **封面比例3:4，内页比例16:9**
-- **生图提示词为纯代码块，代码块外无任何文字**
-
-## Memory
-
-- Daily notes: `memory/YYYY-MM-DD.md`
-- Long-term: `MEMORY.md`
-
-## Red Lines
-
-- 绘本创作必须使用本Agent，不用主agent
-- 未经用户确认，不得进入下一步
-- 所有内容直接输出到聊天框
-- **必须严格遵循全局skill中的所有规则，包括禁止项**
-
+来源：https://github.com/leonluo2008-ops/picturebook-creator
+来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；skill 版本：11.1.7。
+通过 GitHub 连接器导入文件快照，upstream-snapshot 是本地导入基线，不含上游 Git 历史。后续更新通过差异比较合入 Codex 分支，不将该基线当作上游历史直接合并。
