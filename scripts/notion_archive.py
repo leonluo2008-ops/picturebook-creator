@@ -1,0 +1,621 @@
+#!/usr/bin/env python3
+"""Notion 排产台账归档 CLI —— picturebook-creator「步骤 L5」的可执行实现。
+
+零依赖（只用标准库 urllib）。L4 生图提示词确认后直接跑这一条命令即可完成归档，
+不需要再让 agent 现场手写 Notion API 调用。
+
+────────────────────────────────────────────────────────────────
+1) 只定位行（只读，不写任何东西）
+   python3 scripts/notion_archive.py --word day --locate
+
+2) 完整归档（L4 确认后的默认动作）
+   python3 scripts/notion_archive.py --word day \
+       --title 'Let us Learn "DAY"' \
+       --title-cn '一起学 DAY' \
+       --brief '太阳升起是 day，玩耍的日子是 day……' \
+       --narration narration.md \
+       --l4 l4.md \
+       --date 2026-10-23
+
+3) 干跑（打印将要写入的 block 清单，不发写请求）
+   ... 同上 ...  --dry-run
+
+4) 指定目标行（跳过按核心词查行，用于已确认 page_id 的场合）
+   ... 同上 ...  --page-id 3e0a3f92-69aa-81dd-989c-fa702010ba1c
+
+5) 可选属性回填（默认关闭：用户 2026-10-23 明确「直接回填到正文就可以了」）
+   ... 同上 ...  --attr-title --attr-brief
+
+6) 台账没有该核心词的行时（默认行为 = 自动建行）
+   · 按「核心词」精确查行：查到 → 直接用该行，**绝不重复建行**
+   · 查不到 → 自动在台账新建一行（排产号取全库最大 B### +1，状态列留空交给排产流水线）
+   · 想禁用自动建行：--no-create
+   · 新行需要词型/指定排产号：--word-type 名词 --sched-no B301
+
+narration.md 支持两种格式：
+  A) markdown 表格（首行表头 + 分隔行自动跳过）
+       | 页码 | 英文 | 中文 |
+       |------|------|------|
+       | 封面 | DAY  | 白天 DAY |
+  B) JSON
+       [{"page": "封面", "en": "DAY", "cn": "白天 DAY"}, ...]
+
+────────────────────────────────────────────────────────────────
+台账定位（三段式，缺一不可 —— 2026-10-23 实测）
+  中控台页 page_id  ──▶ 正文 child_database(台账库) id  ──▶ GET /v1/databases/{db_id}
+  ──▶ data_sources[].id  ──▶ POST /v1/data_sources/{ds_id}/query
+  ⚠️ child_database id ≠ data_source id：直接拿 child_database id 去 query 会 404。
+
+实测常量（默认值，可用环境变量覆盖）
+  NOTION_CONTROL_PAGE_ID  中控台页  3e0a3f92-69aa-81b4-8385-c2a5309d0824
+  NOTION_LEDGER_DB_ID     台账库   3e0a3f92-69aa-81a6-a5b5-e2bb7962e207
+  NOTION_DATA_SOURCE_ID   数据源   3e0a3f92-69aa-8181-b457-000bcba7fc09
+若默认值失效（404），脚本自动走「搜索『中控』→ child_database → data_sources」重新发现。
+
+环境
+  NOTION_API_KEY  在 ~/.hermes/.env（脚本自动读取，也可直接 export）
+  台账库必须已 Connect 到该 integration，否则 404 object_not_found。
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+NOTION_BASE = "https://api.notion.com"
+NOTION_VERSION = "2025-09-03"
+
+# 实测常量（2026-10-23，绘本排产中控台）
+DEFAULT_CONTROL_PAGE_ID = "3e0a3f92-69aa-81b4-8385-c2a5309d0824"
+DEFAULT_LEDGER_DB_ID = "3e0a3f92-69aa-81a6-a5b5-e2bb7962e207"
+DEFAULT_DATA_SOURCE_ID = "3e0a3f92-69aa-8181-b457-000bcba7fc09"
+
+MAX_RICH_TEXT = 1900   # Notion rich_text.content 上限 2000，留余量
+MAX_BLOCKS_PER_REQ = 90
+
+
+# ────────────────────────────── HTTP ──────────────────────────────
+def load_key() -> str:
+    key = os.environ.get("NOTION_API_KEY")
+    if key:
+        return key.strip()
+    # 查找顺序: 活跃 Hermes env(Windows AppData) → 旧 ~/.hermes → 当前目录
+    candidates = []
+    localappdata = os.environ.get("LOCALAPPDATA")
+    if localappdata:
+        candidates.append(Path(localappdata) / "hermes" / ".env")
+    candidates.append(Path.home() / ".hermes" / ".env")
+    candidates.append(Path(".env"))
+    for env_path in candidates:
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("NOTION_API_KEY"):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    sys.exit("✗ 找不到 NOTION_API_KEY（请在 %LOCALAPPDATA%\\hermes\\.env 或环境变量中配置）")
+
+
+KEY = None
+
+
+def api(path: str, method: str = "GET", body=None, version: str = ""):
+    global KEY
+    if KEY is None:
+        KEY = load_key()
+    req = urllib.request.Request(
+        NOTION_BASE + path,
+        method=method,
+        data=json.dumps(body).encode("utf-8") if body is not None else None,
+        headers={
+            "Authorization": "Bearer " + KEY,
+            "Notion-Version": version or NOTION_VERSION,
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            raw = r.read()
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")[:600]
+        raise SystemExit(f"✗ Notion API {method} {path} → {e.code}\n{detail}") from None
+
+
+# ─────────────────────────── 台账定位 ────────────────────────────
+def _title_of_page(page: dict) -> str:
+    for v in (page.get("properties") or {}).values():
+        if v.get("type") == "title":
+            return "".join(x.get("plain_text", "") for x in v.get("title", []))
+    return ""
+
+
+def discover_ledger() -> tuple[str, str]:
+    """搜索『中控』→ 中控台页 → child_database → data_sources[].id
+
+    NOTION_CONTROL_PAGE_ID 直接指定中控台页（跳过搜索）；NOTION_LEDGER_DB_ID 直接指定台账库
+    （跳过 child_database 发现）——审计 P2-1：两变量此前仅写在 docstring，代码从不读取。
+    """
+    pid = os.environ.get("NOTION_CONTROL_PAGE_ID")
+    if pid:
+        print("  · 中控台页来自 NOTION_CONTROL_PAGE_ID", file=sys.stderr)
+    else:
+        res = api("/v1/search", "POST", {"query": "中控", "page_size": 20})
+        page = next(
+            (o for o in res.get("results", []) if o.get("object") == "page" and "中控" in _title_of_page(o)),
+            None,
+        )
+        if not page:
+            raise SystemExit("✗ 找不到「中控台」页面，确认 integration 已 Connect 到该页面")
+        pid = page["id"]
+    db_id = os.environ.get("NOTION_LEDGER_DB_ID")
+    if db_id:
+        print("  · 台账库来自 NOTION_LEDGER_DB_ID", file=sys.stderr)
+    else:
+        kids = api(f"/v1/blocks/{pid}/children?page_size=100")
+        db = next((b for b in kids.get("results", []) if b.get("type") == "child_database"), None)
+        if not db:
+            raise SystemExit("✗ 中控台页正文没有 child_database（台账库）")
+        db_id = db["id"]
+    meta = api(f"/v1/databases/{db_id}")
+    sources = meta.get("data_sources") or []
+    if not sources:
+        raise SystemExit("✗ 台账库没有 data_sources，无法 query")
+    print(f"  · 发现台账：page={pid} db={db_id} data_source={sources[0]['id']}", file=sys.stderr)
+    return db_id, sources[0]["id"]
+
+
+def resolve_data_source() -> str:
+    ds = os.environ.get("NOTION_DATA_SOURCE_ID") or DEFAULT_DATA_SOURCE_ID
+    try:
+        api(f"/v1/data_sources/{ds}/query", "POST", {"page_size": 1})
+        return ds
+    except SystemExit:
+        print("  · 默认 data_source 失效，重新发现台账…", file=sys.stderr)
+        _, ds2 = discover_ledger()
+        return ds2
+
+
+def query_rows(ds_id: str, word: str) -> list:
+    """按「核心词」精确匹配查行。"""
+    res = api(
+        f"/v1/data_sources/{ds_id}/query",
+        "POST",
+        {
+            "page_size": 10,
+            "filter": {"property": "核心词", "rich_text": {"equals": word}},
+        },
+    )
+    return res.get("results", [])
+
+
+def next_sched_no(ds_id: str) -> str:
+    """扫全库取最大 B### +1（必须分页到 has_more=false，单页会漏）。"""
+    nums, cur = [], None
+    while True:
+        body = {"page_size": 100}
+        if cur:
+            body["start_cursor"] = cur
+        res = api(f"/v1/data_sources/{ds_id}/query", "POST", body)
+        for row in res.get("results", []):
+            t = (row.get("properties") or {}).get("排产号", {}).get("title") or []
+            s = "".join(x.get("plain_text", "") for x in t).strip()
+            if s[:1] == "B" and s[1:].isdigit():
+                nums.append(int(s[1:]))
+        if not res.get("has_more"):
+            break
+        cur = res.get("next_cursor")
+    return "B%03d" % ((max(nums) + 1) if nums else 1)
+
+
+def create_row(ds_id: str, word: str, word_type: str = "", sched_no: str = "") -> dict:
+    """在台账新建一行（只在按核心词查不到时调用）。状态列不设值 —— 归排产流水线管。"""
+    sched_no = sched_no or next_sched_no(ds_id)
+    props = {
+        "排产号": {"title": [{"type": "text", "text": {"content": sched_no}}]},
+        "核心词": {"rich_text": rt(word)},
+    }
+    if word_type:
+        props["词型"] = {"rich_text": rt(word_type)}
+    pg = api("/v1/pages", "POST", {"parent": {"data_source_id": ds_id}, "properties": props})
+    pg["_排产号"] = sched_no
+    pg["_created"] = True
+    return pg
+
+
+def resolve_row(ds_id: str, word: str, allow_create: bool, word_type: str, sched_no: str) -> dict:
+    """有则复用、无则新建。幂等：同一核心词永远不会产生第二行。"""
+    rows = query_rows(ds_id, word)
+    if len(rows) > 1:
+        nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
+        raise SystemExit(f"✗ 「核心词 = {word}」命中多行：{nums}。请用 --page-id 明确指定。")
+    if rows:
+        rows[0]["_排产号"] = rich_text_of(rows[0], "排产号")
+        return rows[0]
+    if not allow_create:
+        raise SystemExit(
+            f"✗ 台账里没有「核心词 = {word}」的行，且已显式禁用自动建行(--no-create)。"
+        )
+    print(f"  · 台账无「核心词 = {word}」的行 → 自动建行", file=sys.stderr)
+    return create_row(ds_id, word, word_type, sched_no)
+
+
+def has_archive(page_id: str) -> bool:
+    """该行正文是否已经有「创作产出」段落（防重复归档）。"""
+    try:
+        md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
+    except SystemExit:
+        return False
+    return ("📚 创作产出" in md) or ("双语旁白" in md and "生图提示词" in md)
+
+
+def rich_text_of(page: dict, prop: str) -> str:
+    p = (page.get("properties") or {}).get(prop) or {}
+    return "".join(x.get("plain_text", "") for x in (p.get("rich_text") or p.get("title") or []))
+
+
+# ─────────────────────────── 旁白解析 ───────────────────────────
+def parse_narration(path: str) -> list[tuple[str, str, str]]:
+    text = Path(path).read_text(encoding="utf-8").strip()
+    if text.startswith("[") or text.startswith("{"):
+        data = json.loads(text)
+        return [(str(r["page"]), str(r["en"]), str(r["cn"])) for r in data]
+    rows = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        if re.fullmatch(r"[-:\s]+", cells[0]):        # 分隔行 |---|---|
+            continue
+        if cells[0] in ("页码", "Page", "page"):      # 表头
+            continue
+        rows.append((cells[0], cells[1], cells[2]))
+    if not rows:
+        raise SystemExit(f"✗ 从 {path} 没解析出旁白行（需要 | 页码 | 英文 | 中文 | 表格 或 JSON）")
+    return rows
+
+
+# ─────────────────────────── block 构造 ──────────────────────────
+def rt(text: str) -> list:
+    if len(text) > 2000:
+        print(f"  ⚠ 文本超 2000 字（{len(text)}），已截断——检查来源是否异常", file=sys.stderr)
+    return [{"type": "text", "text": {"content": text[:2000]}}]
+
+
+def code_blocks(text: str):
+    """单个 code 块，rich_text 按行边界切成 ≤1900 字符的多段。
+
+    Notion 的 2000 字符上限是**单条 rich_text** 的限制，不是整个 block 的限制；
+    一个 block 的 rich_text 数组最多可放 100 条。所以长文本应当切成多条 rich_text
+    放进**同一个** code 块，而不是拆成多个 code 块（那样在页面上会显示成两截）。
+    """
+    chunks, cur = [], ""
+    for line in text.splitlines(keepends=True):
+        if len(cur) + len(line) > MAX_RICH_TEXT:
+            if cur:
+                chunks.append(cur)
+            while len(line) > MAX_RICH_TEXT:          # 极端超长行硬切
+                chunks.append(line[:MAX_RICH_TEXT])
+                line = line[MAX_RICH_TEXT:]
+            cur = line
+        else:
+            cur += line
+    if cur:
+        chunks.append(cur)
+    if not chunks:
+        return []
+    return [
+        {
+            "type": "code",
+            "code": {
+                "rich_text": [{"type": "text", "text": {"content": c}} for c in chunks],
+                "language": "plain text",
+            },
+        }
+    ]
+
+
+def table_block(rows: list[tuple[str, str, str]]) -> dict:
+    header = ("页码", "英文", "中文")
+    cells = [header] + rows
+    table_rows = [
+        {
+            "type": "table_row",
+            "table_row": {"cells": [rt(c) for c in row]},   # 单元格 = rich_text 数组，不外包 type
+        }
+        for row in cells
+    ]
+    return {
+        "type": "table",
+        "table": {
+            "table_width": 3,
+            "has_column_header": True,
+            "children": table_rows,
+        },
+    }
+
+
+def build_blocks(date: str, title: str, title_cn: str, brief: str, narration: list, l4: str,
+                 asset_blocks: list | None = None) -> list:
+    blocks = [{"type": "heading_2", "heading_2": {"rich_text": rt(f"📚 创作产出（{date} 归档）")}}]
+    if title or title_cn:
+        lines = ["选定标题："]
+        if title:
+            lines.append("英文标题：" + title)
+        if title_cn:
+            lines.append("中文标题：" + title_cn)
+        blocks.append({"type": "paragraph", "paragraph": {"rich_text": rt("\n".join(lines))}})
+    if brief:
+        blocks.append({"type": "paragraph", "paragraph": {"rich_text": rt("选定简介：" + brief)}})
+    blocks.append({"type": "heading_3", "heading_3": {"rich_text": rt("双语旁白")}})
+    blocks.append(table_block(narration))
+    blocks.append({"type": "heading_3", "heading_3": {"rich_text": rt("L4 生图提示词")}})
+    # 资产提及块放「L4 生图提示词」标题之下、代码块之前（用户拍板 v10.11.2）；
+    # 提示词文本保持纯净——链接绝不进代码块，否则整块复制提示词时会拖进 URL。
+    blocks.extend(asset_blocks or [])
+    blocks.extend(code_blocks(l4))
+    return blocks
+
+
+# ─────────────────── 资产页链接块（v10.11.1，独立块不进提示词） ───────────────────
+# S3 file URL 是临时签名（约 1 小时过期），不能贴；资产详情页链接永久有效。
+# 呈现方式 = 页面提及块（link mention），与用户在 Notion 手工粘贴链接的效果一致：
+# 渲染成可点击的资产页条目，点开即见图，右键可复制/另存。
+
+ASSET_DB_ID = os.environ.get("NOTION_ASSET_DB_ID", "46d08001922c4ea9b329c1ac43977d2e")
+ASSET_API_VERSION = "2022-06-28"  # 资产图库 query 仅老版头可用（实测 data_sources 为空）
+
+
+def asset_page(name: str) -> dict:
+    """按「资产名称」精确匹配资产行。多行命中即停，禁止猜。"""
+    hits, cursor = [], None
+    while True:
+        body = {"page_size": 100}
+        if cursor:
+            body["start_cursor"] = cursor
+        res = api(f"/v1/databases/{ASSET_DB_ID}/query", "POST", body, version=ASSET_API_VERSION)
+        for row in res.get("results", []):
+            t = row.get("properties", {}).get("资产名称", {}).get("title", [])
+            if "".join(x.get("plain_text", "") for x in t) == name:
+                hits.append(row)
+        if not res.get("has_more"):
+            break
+        cursor = res.get("next_cursor")
+    if not hits:
+        raise SystemExit(f"✗ 资产图库没有「{name}」的行（先在 Notion 建行传图）")
+    if len(hits) > 1:
+        raise SystemExit(f"✗ 资产「{name}」命中 {len(hits)} 行，禁止猜：先在 Notion 改名区分")
+    row = hits[0]
+    use = ((row.get("properties", {}).get("使用定位", {}) or {}).get("select") or {}).get("name", "")
+    return {"id": row["id"], "name": name, "use": use, "url": row.get("url", "")}
+
+
+def asset_mention_blocks(names: list) -> list:
+    """每个资产生成一个独立段落块：说明文字 + 页面提及（可点击进资产页）。"""
+    out = []
+    for n in names:
+        a = asset_page(n)
+        lead = f"参考图[{a['use']}]-点链接查看参考图：" if a["use"] \
+               else "参考图-点链接查看参考图："
+        out.append({"type": "paragraph", "paragraph": {"rich_text": [
+            {"type": "text", "text": {"content": lead}},
+            {"type": "mention", "mention": {"type": "page", "page": {"id": a["id"]}}},
+        ]}})
+    return out
+
+
+# ─────────────────────────── 写入 / 回读 ──────────────────────────
+def append_blocks(page_id: str, blocks: list) -> int:
+    """分批 append（≤90 块/请求），返回写入块数。"""
+    written = 0
+    for i in range(0, len(blocks), MAX_BLOCKS_PER_REQ):
+        batch = blocks[i : i + MAX_BLOCKS_PER_REQ]
+        api(f"/v1/blocks/{page_id}/children", "PATCH", {"children": batch})
+        written += len(batch)
+    return written
+
+
+def _combined_title(title: str, title_cn: str) -> str:
+    return "\n".join(x for x in (title, title_cn) if x)
+
+
+def backfill_props(page_id: str, title: str, brief: str) -> None:
+    props = {}
+    if title:
+        props["选定标题"] = {"rich_text": rt(title)}
+    if brief:
+        props["选定简介"] = {"rich_text": rt(brief)}
+    if props:
+        api(f"/v1/pages/{page_id}", "PATCH", {"properties": props})
+
+
+def advance_status(page_id: str, target: str = "待生图") -> bool:
+    """归档成功后把「状态」推进到 target（默认待生图）并回读验证。
+
+    审计 C1 裁决（用户 2026-10-26）：状态推进并进脚本，不再由会话手工 PATCH。
+    状态列不存在或写入失败只告警不阻断——正文归档已成功，状态属排产侧辅助信息。
+    """
+    try:
+        page = api(f"/v1/pages/{page_id}")
+        props = page.get("properties") or {}
+        if "状态" not in props:
+            print("  ⚠ 台账行无「状态」列，跳过状态推进", file=sys.stderr)
+            return False
+        api(f"/v1/pages/{page_id}", "PATCH",
+            {"properties": {"状态": {"select": {"name": target}}}})
+        # 回读验证
+        after = api(f"/v1/pages/{page_id}")
+        got = ((after.get("properties", {}).get("状态") or {}).get("select") or {}).get("name", "")
+        if got == target:
+            return True
+        print(f"  ⚠ 状态回读不符：期望『{target}』实际『{got}』", file=sys.stderr)
+        return False
+    except SystemExit as e:
+        print(f"  ⚠ 状态推进失败（不影响归档正文）：{e}", file=sys.stderr)
+        return False
+
+
+def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
+    """回读 markdown 校验，返回缺失项列表（空 = 通过）。"""
+    md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
+    missing = []
+    if "双语旁白" not in md:
+        missing.append("heading『双语旁白』")
+    if "L4 生图提示词" not in md:
+        missing.append("heading『L4 生图提示词』")
+    if narration and narration[0][1] not in md:
+        missing.append(f"旁白首行『{narration[0][1]}』")
+    anchors = re.findall(r"场景锚点[:：]\s*([^\n，,]+)", l4)
+    if anchors and anchors[-1].strip() not in md:
+        missing.append(f"L4 场景锚点『{anchors[-1].strip()}』")
+    # --- 逐页对账（审计 P1-1：只锚首行+末锚点检不出中间页丢失/截断）---
+    for label, pat in (("旁白", "旁白[:：]"), ("构图要求", "构图要求[:：]"), ("比例", "比例[:：]")):
+        n_src = len(re.findall(pat, l4))
+        n_md = len(re.findall(pat, md))
+        if n_src and n_md != n_src:
+            missing.append(f"L4『{label}:』计数不符——源 {n_src} 条 vs 归档 {n_md} 条（疑似有页丢失/截断）")
+    # 核心词校验看台账行属性（正文里不一定会出现该词，尤其新建行）
+    try:
+        row_word = rich_text_of(api(f"/v1/pages/{page_id}"), "核心词")
+    except SystemExit:
+        row_word = ""
+    if row_word and word and word.strip().lower() not in row_word.lower():
+        missing.append(f"台账『核心词』应为『{word}』，实际『{row_word}』")
+    return missing
+
+
+# ─────────────────────────────── main ────────────────────────────
+def main() -> int:
+    ap = argparse.ArgumentParser(description="picturebook-creator L5：Notion 排产台账归档")
+    ap.add_argument("--word", required=True, help="核心词，用于在台账『核心词』列精确匹配")
+    ap.add_argument("--title", default="", help="英文标题（选定标题段第一行）")
+    ap.add_argument("--title-cn", default="", dest="title_cn",
+                    help="中文标题（选定标题段第二行；生图只提取中文标题，但台账必须中英都留档）")
+    ap.add_argument("--brief", default="", help="选定简介（写入正文一段）")
+    ap.add_argument("--narration", help="旁白 md/json 文件")
+    ap.add_argument("--l4", help="L4 生图提示词纯文本文件")
+    ap.add_argument("--asset", action="append", default=[], metavar="资产名",
+                    help="在 L4 代码块后追加资产页提及块（可多次；提示词文本保持纯净，链接独立成块——用户拍板）")
+    ap.add_argument("--date", default=None, help="归档日期 YYYY-MM-DD，默认今天")
+    ap.add_argument("--page-id", default=None, help="直接指定台账 row 的 page_id（跳过查行）")
+    ap.add_argument("--attr-title", action="store_true", help="属性回填『选定标题』")
+    ap.add_argument("--attr-brief", action="store_true", help="属性回填『选定简介』")
+    ap.add_argument("--word-type", default="", help="新建行时写入『词型』（名词/动作动词/形容词…）")
+    ap.add_argument("--sched-no", default="", help="新建行时指定排产号，默认自动取 B###+1")
+    ap.add_argument("--no-create", action="store_true", help="查不到该核心词时禁止建行（默认会建）")
+    ap.add_argument("--force", action="store_true", help="该行已有创作产出时仍追加一段（默认拦截）")
+    ap.add_argument("--locate", action="store_true", help="只定位台账行并打印，不写")
+    ap.add_argument("--dry-run", action="store_true", help="打印 block 清单，不发写请求")
+    args = ap.parse_args()
+
+    date = args.date or __import__("datetime").date.today().isoformat()
+
+    # 1) 定位行（有则复用 / 无则新建，除非 --no-create / --page-id）
+    if args.page_id:
+        page_id, sched_no = args.page_id, "(--page-id 指定)"
+        print(f"✓ 台账行：{sched_no}  page_id={page_id}")
+    elif args.locate:
+        ds_id = resolve_data_source()
+        rows = query_rows(ds_id, args.word)
+        if len(rows) > 1:
+            nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
+            raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
+        if rows:
+            print(f"✓ 台账已有该行：{rich_text_of(rows[0], '排产号')}  page_id={rows[0]['id']}（不会重复建行）")
+            if has_archive(rows[0]["id"]):
+                print("  ⚠ 该行正文已有『创作产出』段落 —— 再归档需加 --force")
+        elif args.no_create:
+            print(f"✗ 台账无「核心词 = {args.word}」的行，且已禁用自动建行(--no-create)")
+        else:
+            print(f"· 台账无「核心词 = {args.word}」的行 → 归档时会自动建行（排产号预计 {next_sched_no(ds_id)}）")
+        return 0
+    else:
+        ds_id = resolve_data_source()
+        if args.dry_run and not args.no_create:
+            # --dry-run 绝不建行：查不到行只预告预计排产号（审计发现 P0-1：干跑曾真实写入）
+            probe = query_rows(ds_id, args.word)
+            if len(probe) > 1:
+                nums = [rich_text_of(r, "排产号") or r["id"] for r in probe]
+                raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
+            if not probe:
+                print(f"· [dry-run] 台账无「核心词 = {args.word}」的行 → 真跑将自动建行（排产号预计 {next_sched_no(ds_id)}），本次干跑不写入")
+            row = probe[0] if probe else None
+        else:
+            row = resolve_row(ds_id, args.word, not args.no_create, args.word_type, args.sched_no)
+        if row is None:
+            print("[dry-run] 无既有行可预览正文写入，结束（未写入任何数据）")
+            return 0
+        page_id, sched_no = row["id"], row.get("_排产号", rich_text_of(row, "排产号"))
+        tag = "【新建行】" if row.get("_created") else ""
+        print(f"✓ 台账行{tag}：{sched_no}  page_id={page_id}")
+
+    # 防重复归档：该行已有创作产出 → 默认拦截（--dry-run 只预告、不写，故放行）
+    if has_archive(page_id) and not args.force:
+        if args.dry_run:
+            print("  ⚠ 该行正文已有『📚 创作产出』段落 —— 真跑会被拦截（需 --force），本次是 --dry-run 预览")
+        else:
+            raise SystemExit(
+                f"✗ 该行正文已有『📚 创作产出』段落，为防重复归档已拦截。\n"
+                f"  确认要再加一段（例如 L4 重出后补档）→ 加 --force。"
+            )
+
+    if not (args.narration and args.l4):
+        raise SystemExit("✗ 归档需要 --narration 和 --l4（或用 --locate 只查看行）")
+
+    narration = parse_narration(args.narration)
+    l4 = Path(args.l4).read_text(encoding="utf-8")
+    asset_blocks = asset_mention_blocks(args.asset) if args.asset else []
+    blocks = build_blocks(date, args.title, args.title_cn, args.brief, narration, l4, asset_blocks)
+
+    if args.dry_run:
+        print(f"[dry-run] 将写入 {len(blocks)} 个顶层 block：")
+        for b in blocks:
+            t = b["type"]
+            if t == "table":
+                print(f"  - table  3×{len(b['table']['children'])} 行（首行表头）")
+            elif t == "code":
+                print(f"  - code   {len(b['code']['rich_text'][0]['text']['content'])} 字")
+            else:
+                print(f"  - {t:8s} {b[t]['rich_text'][0]['text']['content'][:40]}")
+        if args.attr_title or args.attr_brief:
+            props = {}
+            if args.attr_title:
+                props["选定标题"] = {"rich_text": rt(_combined_title(args.title, args.title_cn))}
+            if args.attr_brief:
+                props["选定简介"] = {"rich_text": rt(args.brief)}
+            print("[dry-run] 另将回填属性：" + "、".join(props) if props else "")
+        return 0
+
+    # 2) 写正文
+    n = append_blocks(page_id, blocks)
+    print(f"✓ 已写入 {n} 个 block")
+
+    # 3) 可选属性回填
+    if args.attr_title or args.attr_brief:
+        backfill_props(page_id,
+                       _combined_title(args.title, args.title_cn) if args.attr_title else "",
+                       args.brief if args.attr_brief else "")
+        print("✓ 属性回填完成")
+
+    # 4) 回读校验
+    missing = verify(page_id, args.word, narration, l4)
+    if missing:
+        print("✗ 回读校验未通过，缺失：" + "、".join(missing))
+        return 1
+    print(f"✓ 回读校验通过 —— 已归档 Notion（{sched_no}）")
+    # C1: 状态推进并进脚本（归档成功 → 待生图，回读验证）
+    if advance_status(page_id):
+        print("✓ 状态已推进：待生图")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

@@ -1,0 +1,12 @@
+# 悬空引用白名单 — picturebook-creator
+# 格式：<file>:<line>   # 说明
+# 每次改动须复核：whitelist 只放「已确认合理」的条目。
+#
+# ① 工作区路径（文档约定的目录，非仓库内文件，不参与仓库完整性）
+AGENTS.md:8          # ~/huiben-v2/ 工作区约定
+README.md:5          # ~/huiben-v2/ 工作区约定
+references/huiben-project-layout.md:9   # ~/huiben-v2/
+references/huiben-project-layout.md:10  # ~/huiben-projects/
+references/huiben-project-layout.md:11  # ~/作品/
+references/huiben-project-layout.md:27  # /home/luo/ 历史主机路径 + ~/huiben-v2/（已加注说明）
+
