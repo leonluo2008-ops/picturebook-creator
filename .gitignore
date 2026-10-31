@@ -16,3 +16,9 @@ Thumbs.db
 __pycache__/
 *.pyc
 
+
+# 本地凭据与依赖
+.env
+.env.*
+!.env.example
+.venv/

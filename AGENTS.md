@@ -13,3 +13,9 @@
 来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；skill 版本：11.1.7。
 通过 GitHub 连接器导入文件快照，upstream-snapshot 是本地导入基线，不含上游 Git 历史。后续更新通过差异比较合入 Codex 分支，不将该基线当作上游历史直接合并。
 
+
+## 云端与跨设备入口
+
+云端先读 `references/cloud-start.md`，执行 `python tools/cloud_check.py`。云端使用环境提供的 NOTION_API_KEY，不读取本机 Hermes 凭据；不依赖 Windows 绝对路径、OneDrive 或本机代理。当前工作分支为 codex/picturebook-adaptation。
+接续已有书先读 `projects/<排产号>/progress.md`，区分用户确认与草稿。每次确认后更新进度；创作文稿按排产号保存，敏感凭据与大图不入 Git。用户允许当前工作分支推送；不合并其他分支。
+云端承担创作、审稿、提示词和 Notion 归档。浏览器生图与本机专有工具仍交给本地执行；未验证的云端交付能力不能宣称可用。发布云环境后以只读 Notion 查询验证连通，再执行已获确认的写入。
