@@ -7,7 +7,9 @@
 
 ---
 
-## ⚠️ 当前版本：v11.1.7（2026-10-28）
+## ⚠️ 当前版本：v11.1.8-codex.1（2026-10-31，Codex 独立分支）
+
+本分支新增 [封面设计规范](references/cover-design.md)，用于封面构图、提示词与成图验收；上游基线为 v11.1.7，不修改 Hermes live skill。
 
 > v11.1.7 = **台账运维补一节：资产行改名**。`scripts/asset_ref.py` 只有 `--list / --name / --download / --link-word`，没有 rename；改名要直接调 `_req()` PATCH「资产名称」标题。改名即改匹配键（旧名查不到、新名才查得到），relation 挂在 page id 上不受影响；发现错别字先改名再归档挂链，免得错名写进交付记录后每本都要解释。
 
