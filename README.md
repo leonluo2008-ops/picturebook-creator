@@ -7,7 +7,9 @@
 
 ---
 
-## ⚠️ 当前版本：v11.1.8-codex.1（2026-10-31，Codex 独立分支）
+## ⚠️ 当前版本：v11.1.8-codex.2（2026-10-31，Codex 独立分支）
+
+生图验收后自动执行 [标准交付](references/standard-delivery.md)：转换压缩、打包、上传 Notion 与状态回读。
 
 本分支新增 [封面设计规范](references/cover-design.md)，用于封面构图、提示词与成图验收；上游基线为 v11.1.7，不修改 Hermes live skill。
 
