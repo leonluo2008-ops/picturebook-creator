@@ -7,7 +7,7 @@
 
 ---
 
-## ⚠️ 当前版本：v11.1.8-codex.5（2026-11-09，Codex 独立分支）
+## ⚠️ 当前版本：v11.1.8-codex.6（2026-11-09，Codex 独立分支）
 
 生图验收后自动执行 [标准交付](references/standard-delivery.md)：转换压缩、打包、上传 Notion 与状态回读。
 
