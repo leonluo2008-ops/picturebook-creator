@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
-"""L4 生图提示词 · 画面文字形态门禁 v1.0 (2026-10-24)
+"""校验 L4 完整目标词的拼写形态和大小写。
 
-总纲: 画面上出现的每一个英文单词, 大小写形态必须与当页旁白文稿完全一致。
-不禁止全大写——全大写只出现在文稿本身就是全大写的页(P1 字母拆解);
-文稿是小写的词, 画面就不许变成全大写。
-
-检查逻辑:
-1. 解析 L4 的页面记录(旁白: / 比例: / 页面类型: / 生图提示词:)
-2. 每页从旁白行提取目标词的文稿形态集合(如 water → {water}; W-A-T-E-R, water! → {WATER, water})
-3. 扫描同页生图提示词里目标词的全部大小写变体, 逐一比对:
-   - 与文稿形态一致(连字符归一后) → 通过
-   - 全小写 → 通过(词典词头形态, 独立展示标签的标准形态)
-   - 全大写/Title Case/混合形态, 且不在文稿形态里 → 违规
-   - 封面页从宽到严: 只认文稿形态(封面英文标题列即文稿), 不给全小写豁免
-4. 引导语+全局约定区(第一个「旁白:」之前)出现全大写目标词 → 违规
-5. 词长不足全词的碎片(逐字母标色描述里的 loor / Rab 等)自动豁免
-
-用法:
-  python3 l4_case_check.py <L4文件> --word water
-  python3 l4_case_check.py <L4文件> --word floor --word door   # 词族伙伴词可多次
-
-退出码: 0=全过  1=有违规(按输出逐页修复后重跑)
+封面按书名，内页完整词可用词典词头形态。
+用法：python3 tools/l4_case_check.py <L4 文件> --word <目标词>
 """
 import sys
 import re
@@ -59,29 +41,29 @@ def parse_pages(text):
 
 
 def norm(token):
-    """连字符归一: W-A-T-E-R → WATER"""
-    return token.replace('-', '').replace('–', '')
+    """归一分隔符，用于识别目标词的拆写形式。"""
+    return re.sub(r'[-–‑·]', '', token)
 
 
 def expected_forms(word, narration, page_no, is_cover):
-    """从当页旁白行提取目标词的文稿形态集合(原文形态 + 连字符归一形态)。"""
+    """提取旁白中的完整目标词形态。"""
     forms = set()
-    for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', narration):
+    for m in re.finditer(r'[A-Za-z][A-Za-z–‑·-]*', narration):
         tok = m.group(0)
-        if norm(tok).lower() == word.lower():
-            forms.add(norm(tok))
+        if tok.lower() == word.lower():
+            forms.add(tok)
     return forms
 
 
 def scan_prompt_variants(word, prompt):
     """扫描提示词里目标词的全部变体, 返回 [(原文变体, 计数)]。碎片(长度<全词)已豁免。"""
     variants = {}
-    wl = len(word)
-    for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', prompt):
+    wl = len(norm(word))
+    for m in re.finditer(r'[A-Za-z][A-Za-z–‑·-]*', prompt):
         tok = m.group(0)
         if len(norm(tok)) != wl:
             continue  # 碎片/更长复合词豁免
-        if norm(tok).lower() == word.lower():
+        if norm(tok).lower() == norm(word).lower():
             variants[tok] = variants.get(tok, 0) + 1
     return variants
 
@@ -91,9 +73,15 @@ def check_page(page, page_no, words):
     issues = []
     is_cover = (page_no == '封面') or ('封面' in page['narration'][:10])
     for word, exp in words:
+        for tok in scan_prompt_variants(word, page['narration']):
+            if tok.lower() != word.lower():
+                issues.append(f"[{page_no}] 旁白拆写了目标词 {tok!r}，请完整写作 {word}。")
         variants = scan_prompt_variants(word, page['prompt'])
         for tok, cnt in sorted(variants.items()):
-            n = norm(tok)
+            if tok.lower() != word.lower():
+                issues.append(f"[{page_no}] 画面拆写了目标词 {tok!r}，请完整写作 {word}。")
+                continue
+            n = tok
             if n in exp:
                 continue  # 与文稿形态一致
             if n == word.lower() and not is_cover:
@@ -109,9 +97,11 @@ def check_page(page, page_no, words):
 def check_header(header, words):
     issues = []
     for word, _ in words:
-        for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', header):
+        for m in re.finditer(r'[A-Za-z][A-Za-z–‑·-]*', header):
             tok = m.group(0)
-            if len(norm(tok)) == len(word) and norm(tok) == word.upper():
+            if norm(tok).lower() == norm(word).lower() and tok.lower() != word.lower():
+                issues.append(f"[引导语/约定区] 拆写了目标词 {tok!r}，请完整写作 {word}。")
+            elif tok == word.upper() and len(word) > 1:
                 ctx = header[max(0, m.start() - 15):m.end() + 10].replace('\n', ' ')
                 issues.append(f"[引导语/约定区] 全大写'{tok}'——目标词在引导语里也须按约定形态(小写)书写: …{ctx}…")
     return issues

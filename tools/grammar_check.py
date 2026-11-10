@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""领读绘本旁白表 · 中英大小写语法审计器 v1.1 (2026-10-24 参数化重写)
+"""领读绘本旁白表 · 中英整词与大小写检查
 
 检查中英旁白表的大小写语法：
 1. 英文列：句首字母必须大写；全大写长句仅限单词展示页；封面英文目标词禁全大写(应 Title Case)
 2. 中文列：目标词形态跟随规则（CY/T 154-2017 第7节）
    - 英文列是纯展示行(如 Floor / Learn "way") → 中文列跟随同形态
    - 封面行(书名)整行按展示性文本处理 → 中文列跟随书名里目标词的形态(书名写 Towel, 中文列就写 Towel)
-   - 其余(句子夹用, 含 P1 拆解行) → 中文列一律小写(7.1 普通词不承担英文句首大写)
+   - 其余(句子夹用) → 中文列一律小写(7.1 普通词不承担英文句首大写)
 3. 句尾标点中英对应（. ! ? → 。！？）
 
 用法: python3 grammar_check.py <旁白表.txt> --word floor [--word door]
@@ -16,10 +16,7 @@ import sys
 import re
 import argparse
 
-
-def norm(token):
-    """连字符归一: F-L-O-O-R → FLOOR"""
-    return token.replace('-', '').replace('–', '')
+from l4_case_check import scan_prompt_variants
 
 
 def en_display_form(en_cell, word, is_cover=False):
@@ -29,12 +26,12 @@ def en_display_form(en_cell, word, is_cover=False):
     就是中文列该跟随的形态——书名写 A Soft Towel, 中文列就写 Towel。
     """
     stripped = en_cell.strip().strip('"“”\'').rstrip('.!?。！？').strip()
-    if re.fullmatch(r'[A-Za-z][A-Za-z\-]*', stripped) and norm(stripped).lower() == word.lower():
+    if re.fullmatch(r'[A-Za-z][A-Za-z\-]*', stripped) and stripped.lower() == word.lower():
         return stripped
     if is_cover:
         for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', en_cell):
             tok = m.group(0)
-            if norm(tok).lower() == word.lower():
+            if tok.lower() == word.lower():
                 return tok
     return None
 
@@ -44,17 +41,14 @@ def check_rows(rows, words):
     for page, en, cn in rows:
         is_cover = (page == '封面')
         # --- 英文列检查 ---
-        # 句子只以 . ! ? 结束; 逗号/分号不断句, 逗号后的接续词小写是正字法(W-ay, way!)
+        # 句子以 . ! ? 结束，逗号或分号后继续按同一句处理
         for sent in re.split(r'(?<=[.!?])\s+', en):
             sent = sent.strip()
             if not sent:
                 continue
             first_alpha = next((c for c in sent if c.isalpha()), None)
             if first_alpha and first_alpha.islower():
-                # 豁免: P1字母拆解页小写跟读词(大写拆解+小写认读对照是教学惯例)
-                # 豁免: P7词族页演示词(hit/sit/fit)小写展示词头变化是教学设计
-                # 豁免: 连字符词首小写如 c-AT(换词头演示)
-                if not (page in ('P1',) or page == 'P7' or re.match(r'^[a-z]-[A-Z]', sent)):
+                if not any(en_display_form(sent, w) for w in words):
                     issues.append(f"[{page}] 英文句首应大写: '{sent[:20]}...'")
         en_all = re.findall(r'[A-Za-z]+', en)
         if en_all and all(w.isupper() for w in en_all) and len(en) > 12 and ',' in en:
@@ -63,17 +57,19 @@ def check_rows(rows, words):
         # --- 中文列目标词形态检查 (CY/T 154-2017 第7节) ---
         cn_tokens = re.findall(r'[A-Za-z][A-Za-z\-]*', cn)
         for w in words:
+            for lang, content in [('英文', en), ('中文', cn)]:
+                for tok in scan_prompt_variants(w, content):
+                    if tok.lower() != w.lower():
+                        issues.append(f"[{page}] {lang}旁白拆写了 {tok!r}，请完整写作 {w}。")
             display = en_display_form(en, w, is_cover)
             # 封面英文目标词禁全大写(2026-10-24 拍板: 封面 Title Case, 词形与内页一致可迁移)
-            if is_cover and display and len(norm(display)) > 1 and display == display.upper():
+            if is_cover and display and len(display) > 1 and display == display.upper():
                 issues.append(f"[{page}] 封面英文目标词'{display}'应为Title Case'{display.capitalize()}'(禁全大写,词形须与内页一致)")
             expected = display if display else w.lower()
             reason = ('跟随英文展示行形态' if display else '中文句夹用普通词一律小写,CY/T 154-2017 7.1')
             for tok in cn_tokens:
-                if '-' in tok:
-                    continue  # 拆解段(R-A-B-B-I-T/Rab-bit)镜像英文列教学设计, 不按夹用词检查
-                if len(norm(tok)) == len(w) and norm(tok).lower() == w.lower():
-                    if norm(tok) != norm(expected):
+                if len(tok) == len(w) and tok.lower() == w.lower():
+                    if tok != expected:
                         kind = 'Title Case' if tok == tok.capitalize() else ('全大写' if tok.isupper() else '混合形态')
                         issues.append(f"[{page}] 中文列'{tok}'({kind})应为'{expected}'({reason})")
 

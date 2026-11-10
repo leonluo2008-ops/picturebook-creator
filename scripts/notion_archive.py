@@ -53,7 +53,7 @@ narration.md 支持两种格式：
 若默认值失效（404），脚本自动走「搜索『中控』→ child_database → data_sources」重新发现。
 
 环境
-  NOTION_API_KEY  在 ~/.hermes/.env（脚本自动读取，也可直接 export）
+  NOTION_API_KEY  由进程环境或当前 Hermes 配置目录的 .env 提供
   台账库必须已 Connect 到该 integration，否则 404 object_not_found。
 """
 
@@ -82,22 +82,30 @@ MAX_BLOCKS_PER_REQ = 90
 
 # ────────────────────────────── HTTP ──────────────────────────────
 def load_key() -> str:
-    key = os.environ.get("NOTION_API_KEY")
+    key = os.environ.get("NOTION_API_KEY", "").strip()
     if key:
-        return key.strip()
-    # 查找顺序: 活跃 Hermes env(Windows AppData) → 旧 ~/.hermes → 当前目录
-    candidates = []
-    localappdata = os.environ.get("LOCALAPPDATA")
-    if localappdata:
-        candidates.append(Path(localappdata) / "hermes" / ".env")
-    candidates.append(Path.home() / ".hermes" / ".env")
-    candidates.append(Path(".env"))
+        return key
+
+    profile = os.environ.get("HERMES_HOME", "").strip()
+    if profile:
+        candidates = [Path(profile).expanduser() / ".env"]
+    else:
+        candidates = []
+        localappdata = os.environ.get("LOCALAPPDATA")
+        if localappdata:
+            candidates.append(Path(localappdata) / "hermes" / ".env")
+        candidates.extend([Path.home() / ".hermes" / ".env", Path(".env")])
+
     for env_path in candidates:
-        if env_path.exists():
-            for line in env_path.read_text(encoding="utf-8").splitlines():
-                if line.strip().startswith("NOTION_API_KEY"):
-                    return line.split("=", 1)[1].strip().strip('"').strip("'")
-    sys.exit("✗ 找不到 NOTION_API_KEY（请在 %LOCALAPPDATA%\\hermes\\.env 或环境变量中配置）")
+        if not env_path.is_file():
+            continue
+        for line in env_path.read_text(encoding="utf-8-sig").splitlines():
+            name, separator, value = line.strip().removeprefix("export ").partition("=")
+            if separator and name.strip() == "NOTION_API_KEY":
+                key = value.strip().strip('"').strip("'")
+                if key:
+                    return key
+    sys.exit("✗ 找不到 NOTION_API_KEY，请在当前 Hermes 配置目录的 .env 或进程环境中配置。")
 
 
 KEY = None

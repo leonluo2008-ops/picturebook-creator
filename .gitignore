@@ -15,3 +15,9 @@ Thumbs.db
 # Python 缓存
 __pycache__/
 *.pyc
+
+# 本地凭据和依赖
+.env
+.env.*
+!.env.example
+.venv/

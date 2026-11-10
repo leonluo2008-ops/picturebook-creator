@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""L5 归档后的独立回读校验 —— 不 import notion_archive(归档脚本自报的「回读校验通过」不采信)。
+"""L5 归档后的独立回读校验。复用凭据读取，自行发起 HTTP 请求核对结果。
 
 用法:
   python3 scripts/notion_verify.py --word stack
@@ -33,6 +33,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from notion_archive import load_key
+
 # ── Windows: IPv6 抖动伪装成 ENOENT,强制 IPv4 ──────────────────────────
 _orig_getaddrinfo = socket.getaddrinfo
 
@@ -41,7 +43,8 @@ def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
     return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
 
 
-socket.getaddrinfo = _ipv4_only
+if os.name == "nt":
+    socket.getaddrinfo = _ipv4_only
 
 BASE = "https://api.notion.com"
 NOTION_VERSION = "2025-09-03"
@@ -50,22 +53,6 @@ FENCE = "`" * 3
 
 
 # ── HTTP ────────────────────────────────────────────────────────────────
-def load_key() -> str:
-    key = os.environ.get("NOTION_API_KEY")
-    if key:
-        return key.strip()
-    candidates = []
-    localappdata = os.environ.get("LOCALAPPDATA")
-    if localappdata:
-        candidates.append(Path(localappdata) / "hermes" / ".env")
-    candidates.append(Path.home() / ".hermes" / ".env")
-    for env_path in candidates:
-        if env_path.exists():
-            for line in env_path.read_text(encoding="utf-8").splitlines():
-                if line.strip().startswith("NOTION_API_KEY"):
-                    return line.split("=", 1)[1].strip().strip('"').strip("'")
-    sys.exit("✗ 找不到 NOTION_API_KEY(%LOCALAPPDATA%\\hermes\\.env 或环境变量)")
-
 
 KEY = None
 
@@ -182,6 +169,13 @@ def main() -> int:
     def cnt(s: str) -> int:
         return md.count(s)
 
+    prompts = re.findall(r"(?m)^生图提示词[:：][^\r\n]+", md)
+    anchored = sum(
+        bool(re.search(r"场景(?:锚点|一致性)[:：][ \t]*[^\s。；，]", prompt))
+        for prompt in prompts
+    )
+    framed = sum(len(re.findall(r"构图要求[:：][ \t]*[^\s。；，]", prompt)) == 1 for prompt in prompts)
+
     checks = [
         ("状态=待生图", state == "待生图", f"实际 {state!r}"),
         ("创作产出 heading", cnt("创作产出") == 1, f"实际 {cnt('创作产出')}"),
@@ -190,8 +184,8 @@ def main() -> int:
         ("旁白表 <tr> = 页数+1", cnt("<tr") == pages + 1, f"实际 {cnt('<tr')} / 期望 {pages + 1}"),
         ("比例 3:4 = 1", cnt("比例: 3:4") == 1, f"实际 {cnt('比例: 3:4')}"),
         ("比例 16:9 = 内页数", cnt("比例: 16:9") == pages - 1, f"实际 {cnt('比例: 16:9')} / 期望 {pages - 1}"),
-        ("场景锚点 = 页数", cnt("场景锚点:") == pages, f"实际 {cnt('场景锚点:')} / 期望 {pages}"),
-        ("构图要求 = 页数+1(含全局)", cnt("构图要求") == pages + 1, f"实际 {cnt('构图要求')} / 期望 {pages + 1}"),
+        ("每页有场景标签", len(prompts) == anchored == pages, f"合格 {anchored} / 提示词 {len(prompts)} / 期望 {pages}"),
+        ("每页一条构图要求", len(prompts) == framed == pages, f"合格 {framed} / 提示词 {len(prompts)} / 期望 {pages}"),
         ("围栏 = 2(整篇一个代码块)", cnt(FENCE) == 2, f"实际 {cnt(FENCE)}"),
     ]
 
