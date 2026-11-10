@@ -182,6 +182,13 @@ def main() -> int:
     def cnt(s: str) -> int:
         return md.count(s)
 
+    prompts = re.findall(r"(?m)^生图提示词[:：][^\r\n]+", md)
+    anchored = sum(
+        len(re.findall(r"场景(?:锚点|一致性)[:：][ \t]*[^\s。；，]", prompt)) == 1
+        for prompt in prompts
+    )
+    framed = sum(len(re.findall(r"构图要求[:：][ \t]*[^\s。；，]", prompt)) == 1 for prompt in prompts)
+
     checks = [
         ("状态=待生图", state == "待生图", f"实际 {state!r}"),
         ("创作产出 heading", cnt("创作产出") == 1, f"实际 {cnt('创作产出')}"),
@@ -190,8 +197,8 @@ def main() -> int:
         ("旁白表 <tr> = 页数+1", cnt("<tr") == pages + 1, f"实际 {cnt('<tr')} / 期望 {pages + 1}"),
         ("比例 3:4 = 1", cnt("比例: 3:4") == 1, f"实际 {cnt('比例: 3:4')}"),
         ("比例 16:9 = 内页数", cnt("比例: 16:9") == pages - 1, f"实际 {cnt('比例: 16:9')} / 期望 {pages - 1}"),
-        ("场景锚点 = 页数", cnt("场景锚点:") == pages, f"实际 {cnt('场景锚点:')} / 期望 {pages}"),
-        ("构图要求 = 页数+1(含全局)", cnt("构图要求") == pages + 1, f"实际 {cnt('构图要求')} / 期望 {pages + 1}"),
+        ("每页一个场景标签", len(prompts) == anchored == pages, f"合格 {anchored} / 提示词 {len(prompts)} / 期望 {pages}"),
+        ("每页一条构图要求", len(prompts) == framed == pages, f"合格 {framed} / 提示词 {len(prompts)} / 期望 {pages}"),
         ("围栏 = 2(整篇一个代码块)", cnt(FENCE) == 2, f"实际 {cnt(FENCE)}"),
     ]
 
@@ -210,3 +217,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

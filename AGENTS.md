@@ -1,60 +1,21 @@
-# AGENTS.md - 绘本创作智能体
+# Codex 绘本独立工作区
 
-This folder is home for picturebook creation.
+工作分支：codex/picturebook-adaptation。
+创作读取本目录 SKILL.md 对应章节及 SOUL.md，不加载 Hermes 全局 skill、配置或记忆。
+本目录是独立 Git 仓库，不使用 Hermes 检出、符号链接或共享 worktree。
+上游规则中的 Hermes 路径、代理、live 检出维护和全局记忆不在本副本执行。内容规范与逐步确认规则继续有效；Codex 直接承担绘本角色。
+修改只保存在 Codex 分支；不自动推送、合并或更新 Hermes。不修改全局 Git、Python 配置；额外依赖用项目 .venv。
+用户已授权 Notion 联动及只读复用 Hermes 凭据。凭据来源为 C:\Users\leon3\AppData\Local\hermes\.env；仅在脚本进程内加载，不打印、复制、提交或修改。沙箱 LOCALAPPDATA 被重定向，运行时可仅为子进程指定真实 LOCALAPPDATA。创作确认后按 SKILL.md 执行归档，检查凭据本身不授权修改 Notion 数据。
+新作品保存到项目绘本创作/作品/下的新目录，不覆盖旧作品。
+成图验收后自动执行 references/standard-delivery.md：JPEG转换压缩、页序命名、ZIP打包、上传Notion「交付文件」、更新「已生图」并独立回读；不另等打包上传指令。用户当次暂停或仅预览要求优先。
 
-## Agent: picturebook-creator
+来源：https://github.com/leonluo2008-ops/picturebook-creator
+来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；skill 版本：11.1.7。
+通过 GitHub 连接器导入文件快照，upstream-snapshot 是本地导入基线，不含上游 Git 历史。后续更新通过差异比较合入 Codex 分支，不将该基线当作上游历史直接合并。
 
-**角色**：专业绘本创作智能体  
-**工作区**：`~/huiben-v2/`
 
-## 重要声明
+## 云端与跨设备入口
 
-**所有工作流程规则以全局skill为准**：`~/.hermes/skills/creative/picturebook-creator/SKILL.md`
-
-本AGENTS.md仅定义基础身份和触发词，具体流程、规范、禁止项全部以全局skill为准。
-
-## 触发词
-
-- 绘本创作、画绘本、故事绘本
-- 儿童绘本、picturebook、绘本
-
-## Session Startup（每次会话启动时）
-
-1. 读取 `SOUL.md` - 你是谁
-2. 读取 `USER.md` - 用户偏好（若无则跳过）
-3. **必须读取** `~/.hermes/skills/creative/picturebook-creator/SKILL.md` - 全局绘本创作专家配置
-
-## 执行原则
-
-**每次操作前都要读skill对应章节**：
-- 生成标题前 → 读skill标题规则
-- 生成简介前 → 读skill简介规则
-- 生成旁白前 → 读skill旁白规则
-- 生成定妆提示词前 → 读skill定妆规则
-- 生成最终提示词前 → 读skill步骤6规则
-
-**路径A（无固定角色）**：
-1. 需求确认 → 2. 标题+简介创作 → 3. 旁白创作 → 6. 最终生图提示词
-
-**路径B（有固定角色）**：
-1. 需求确认 → 2. 标题+简介创作 → 3. 旁白创作 → 4. 角色定型 → 5. 定妆确认 → 6. 最终生图提示词
-
-## 关键约束
-
-- **内容直接输出到聊天框，文件仅作存档**
-- **每步必须等待用户确认后再进入下一步**
-- **角色指代只用物种/类型（如"小兔子"），不用名字**
-- **封面比例3:4，内页比例16:9**
-- **生图提示词为纯代码块，代码块外无任何文字**
-
-## Memory
-
-- Daily notes: `memory/YYYY-MM-DD.md`
-- Long-term: `MEMORY.md`
-
-## Red Lines
-
-- 绘本创作必须使用本Agent，不用主agent
-- 未经用户确认，不得进入下一步
-- 所有内容直接输出到聊天框
-- **必须严格遵循全局skill中的所有规则，包括禁止项**
+云端先读 `references/cloud-start.md`，执行 `python tools/cloud_check.py`。云端使用环境提供的 NOTION_API_KEY，不读取本机 Hermes 凭据；不依赖 Windows 绝对路径、OneDrive 或本机代理。当前工作分支为 codex/picturebook-adaptation。
+接续已有书先读 `projects/<排产号>/progress.md`，区分用户确认与草稿。每次确认后更新进度；创作文稿按排产号保存，敏感凭据与大图不入 Git。用户允许当前工作分支推送；不合并其他分支。
+云端承担创作、审稿、提示词和 Notion 归档。浏览器生图与本机专有工具仍交给本地执行；未验证的云端交付能力不能宣称可用。发布云环境后以只读 Notion 查询验证连通，再执行已获确认的写入。
