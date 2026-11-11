@@ -1,0 +1,17 @@
+{
+  "kind": "actual Hermes discovery/preload/resource reads; no model inference",
+  "loaded": [
+    "picturebook-creator"
+  ],
+  "missing": [],
+  "read_files": [
+    "SKILL.md",
+    "references/editorial.md",
+    "references/image-prompts.md",
+    "references/notion-ledger.md",
+    "references/standard-delivery.md",
+    "references/visual-design.md"
+  ],
+  "without_notion_key": true,
+  "skill_sha256": "593578e0d5fd1eff688aefd90de902e0bcc72ae8b57dae93a4521261fc4165d9"
+}

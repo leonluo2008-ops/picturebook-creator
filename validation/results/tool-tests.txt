@@ -1,0 +1,25 @@
+test_duplicate_page (__main__.BookTests) ... ok
+test_grammatical_inflection_is_allowed (__main__.BookTests) ... ok
+test_missing_cover (__main__.BookTests) ... ok
+test_missing_prompt_pages (__main__.BookTests) ... ok
+test_split_target (__main__.BookTests) ... ok
+test_wrong_cover (__main__.BookTests) ... ok
+test_all_pages_are_read (__main__.NotionTests) ... ok
+test_append_existing_book_rejected (__main__.NotionTests) ... ok
+test_concurrent_relation_id_change_rejected (__main__.NotionTests) ... ok
+test_concurrent_text_change_rejected (__main__.NotionTests) ... ok
+test_content_failure_does_not_advance_status (__main__.NotionTests) ... ok
+test_dry_run_does_not_write (__main__.NotionTests) ... ok
+test_empty_page_archive_readback (__main__.NotionTests) ... ok
+test_merged_richtext_readback (__main__.NotionTests) ... ok
+test_missing_appended_content_detected (__main__.NotionTests) ... ok
+test_server_silent_failure_is_not_success (__main__.NotionTests) ... ok
+test_status_after_content_readback (__main__.NotionTests) ... ok
+test_table_width_rejected (__main__.NotionTests) ... ok
+test_update_preserves_english_status_and_attachment (__main__.NotionTests) ... ok
+test_wrong_page_rejected_before_network (__main__.NotionTests) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.005s
+
+OK
