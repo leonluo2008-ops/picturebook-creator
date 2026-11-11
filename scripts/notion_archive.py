@@ -8,7 +8,7 @@
 1) 只定位行（只读，不写任何东西）
    python3 scripts/notion_archive.py --word day --locate
 
-2) 完整归档（L4 确认后的默认动作）
+2) 完整归档（dry-run 预览并经用户明确确认后的动作；绝不从 L4 确认自动真跑）
    python3 scripts/notion_archive.py --word day \
        --title 'Let us Learn "DAY"' \
        --title-cn '一起学 DAY' \
