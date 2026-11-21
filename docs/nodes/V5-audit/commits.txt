@@ -1,7 +1,0 @@
-f2a62a7 docs(release): v13.0.0 发布说明（所有者可读版：产出层变化/门禁/回滚/下一步）
-87e17b9 release(skill): v13.0.0 - frontmatter 升版 + CHANGELOG 条目（含既存未提交的 codex.9/codex.10 两条）
-d6a623c refactor(skill): v13 V5 - 闭合双路审计 4 条 BLOCKING + 12 条 IMPL-FIXABLE（27 处）
-e7491af refactor(skill): v13 V4 - 格式代际统一（旁白/页面类型禁止 Pn 前缀，实测 13 本/8 页漂移）+ 死链复核 0 条
-7aee76c refactor(skill): v13 V3 - 族2/族3 补 29 本证据脚注（标题含词 27/27、括注 0/29、拆读残留 2/29；规则本身已正确，不改）
-3b38e2a refactor(skill): v13 V2 — 族4 L4 软硬约束定档（29 本实测）
-698304e refactor(skill): v13 第一批 — 参考图体系 / 状态机 / Notion MCP 规范 / 存在性门禁
