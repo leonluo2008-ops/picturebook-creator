@@ -2,7 +2,7 @@
 
 把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。
 
-**工作区**：`~/huiben-v2/`（项目存档与 session 记录）
+**工作区**：本仓库目录（v13 起为 `E:\OneDrive\工作文件夹\儿童绘本\codex-workspace\picturebook-creator`）；**内容真源是 Notion 排产台账**（639 行），本地 `projects/<排产号>/` 为按书的草稿与进度
 **完整规则以 `SKILL.md` 为准**，本文件仅作总览。
 
 ---
@@ -285,8 +285,12 @@ picturebook-creator/
 ├── CHANGELOG.md          # 版本说明（含 v10.0.0 重置说明）
 ├── test-prompts.json     # 测试用例
 ├── scripts/
-│   └── notion_archive.py # L5 归档脚本（零依赖 CLI：定位行→写正文→回读校验）
-├── tools/                # 校验脚本（悬空引用扫描等）
+│   ├── notion_archive.py       # L5 归档脚本（零依赖 CLI：定位行→写正文→回读校验）
+│   ├── l4_presence_check.py    # 门禁 v2.0：逐页「在不在」（--page-words 可指定词族页词集）
+│   └── l4_structure_check.py   # 自检 v2.1：块存在性 / 每页词数 / 构图三要素 / 内页数 / 目标词次数
+├── tools/                # 校验脚本
+│   ├── l4_case_check.py        # 门禁：画面文字形态（大小写与旁白一致）
+│   └── grammar_check.py        # 门禁：语法 / 标点 / 目标词同现
 └── references/
     └── style-library.md  # 风格备选库（16种预设风格，SKILL.md 唯一引用的参考文件）
 ```

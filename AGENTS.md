@@ -1,6 +1,6 @@
 # Codex 绘本独立工作区
 
-工作分支：codex/picturebook-adaptation。
+工作分支：**`refactor/v13-20261121`**（v13 大版本重构；基线 `9288959`，目标版本 `13.0.0`）。旧的 `codex/picturebook-adaptation` 为 v11 基线，不在其上继续改。
 创作读取本目录 SKILL.md 对应章节及 SOUL.md，不加载 Hermes 全局 skill、配置或记忆。
 本目录是独立 Git 仓库，不使用 Hermes 检出、符号链接或共享 worktree。
 上游规则中的 Hermes 路径、代理、live 检出维护和全局记忆不在本副本执行。内容规范与逐步确认规则继续有效；Codex 直接承担绘本角色。
@@ -10,12 +10,12 @@
 成图验收后自动执行 references/standard-delivery.md：JPEG转换压缩、页序命名、ZIP打包、上传Notion「交付文件」、更新「已生图」并独立回读；不另等打包上传指令。用户当次暂停或仅预览要求优先。
 
 来源：https://github.com/leonluo2008-ops/picturebook-creator
-来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；skill 版本：11.1.7。
+来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；导入基线版本：11.1.7；**当前版本：13.0.0**。
 通过 GitHub 连接器导入文件快照，upstream-snapshot 是本地导入基线，不含上游 Git 历史。后续更新通过差异比较合入 Codex 分支，不将该基线当作上游历史直接合并。
 
 
 ## 云端与跨设备入口
 
-云端先读 `references/cloud-start.md`，执行 `python tools/cloud_check.py`。云端使用环境提供的 NOTION_API_KEY，不读取本机 Hermes 凭据；不依赖 Windows 绝对路径、OneDrive 或本机代理。当前工作分支为 codex/picturebook-adaptation。
+云端先读 `references/cloud-start.md`，执行 `python tools/cloud_check.py`。云端使用环境提供的 NOTION_API_KEY，不读取本机 Hermes 凭据；不依赖 Windows 绝对路径、OneDrive 或本机代理。当前工作分支为 `refactor/v13-20261121`。
 接续已有书先读 `projects/<排产号>/progress.md`，区分用户确认与草稿。每次确认后更新进度；创作文稿按排产号保存，敏感凭据与大图不入 Git。用户允许当前工作分支推送；不合并其他分支。
 云端承担创作、审稿、提示词和 Notion 归档。浏览器生图与本机专有工具仍交给本地执行；未验证的云端交付能力不能宣称可用。发布云环境后以只读 Notion 查询验证连通，再执行已获确认的写入。
