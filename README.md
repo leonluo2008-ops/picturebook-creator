@@ -176,7 +176,7 @@
 | 语法 | 主谓一致、单复数与冠词、时态统一（默认一般现在时）、句子完整 |
 | 整词领读 | 旁白使用完整词，按自然语流跟读。入画词连写，可单色或多彩装饰，配色按可读性决定 |
 | 中文旁白落点 | 目标词收在句尾自然落点，不许卡进名词 / 动词短语中间（「回家的 way」）；中文列用简短中文口令，按已确认的教学单位引导跟读 |
-| 朗读 | 每页出声读一遍；英文一页 ≤8 词，中文一句 ≤30 字 |
+| 朗读 | 每页出声读一遍；英文一页硬上限 10 词、单句建议 ≤8，中文一句 ≤30 字 |
 
 ---
 
@@ -255,7 +255,7 @@ python3 scripts/notion_archive.py --word day \                          # ② �
 | 3 | `heading_3` + `table` | 双语旁白（3 列，首行表头） |
 | 4 | `heading_3` + `code` | L4 生图提示词全文（**一个** code 块；超 1900 字在同块内拆多条 rich_text，不拆块） |
 
-前置条件：`NOTION_API_KEY` 在 `~/.hermes/.env`（frontmatter 已声明为必需环境变量），台账库已 Connect 到该 integration。
+前置条件：`NOTION_API_KEY` 放在 Hermes 凭据文件（本机 `C:\Users\leon3\AppData\Local\hermes\.env`），台账库已 Connect 到该 integration。**v14 的 frontmatter 只声明 name/description/version**，不再声明该变量；走 Notion MCP 时不需要它。
 
 > 台账定位三段式（中控台页 → child_database → `GET /v1/databases/{id}` → `data_sources[].id`）已内置于脚本并带自动重新发现；`child_database id ≠ data_source_id`，拿前者直接 query 必 404。
 
@@ -265,21 +265,27 @@ python3 scripts/notion_archive.py --word day \                          # ② �
 
 ```
 picturebook-creator/
-├── SKILL.md              # 主技能文件（完整工作流+规则，唯一事实来源）
-├── SOUL.md               # 角色定义
-├── AGENTS.md             # 智能体身份与触发词
+├── SKILL.md              # 主技能文件：frontmatter + 五节（薄，只读这里就能开工）
+├── SOUL.md               # 身份与铁律
+├── AGENTS.md             # 仓内规则（分支 / 边界 / 约束）
 ├── README.md             # 本文件
-├── CHANGELOG.md          # 版本说明（含 v10.0.0 重置说明）
-├── test-prompts.json     # 测试用例
-├── scripts/
-│   ├── notion_archive.py       # L5 归档脚本（零依赖 CLI：定位行→写正文→回读校验）
-│   ├── l4_presence_check.py    # 门禁 v2.0：逐页「在不在」（--page-words 可指定词族页词集）
-│   └── l4_structure_check.py   # 自检 v2.1：块存在性 / 每页词数 / 构图三要素 / 内页数 / 目标词次数
-├── tools/                # 校验脚本
-│   ├── l4_case_check.py        # 门禁：画面文字形态（大小写与旁白一致）
-│   └── grammar_check.py        # 门禁：语法 / 标点 / 目标词同现
-└── references/
-    └── style-library.md  # 风格备选库（16种预设风格，SKILL.md 唯一引用的参考文件）
+├── CHANGELOG.md          # 版本说明
+├── test-prompts.json     # 触发词回归用例
+├── references/           # 9 个专题细则，按 SKILL「参考」节按需加载
+│   ├── flow.md                 # L1–L3.5 五步动作、输出模板、确认词表、口语门禁
+│   ├── rules.md                # 规则总集（9 主题）+ 裁定清单 + 待验证假设
+│   ├── l4-spec.md              # L4 输出形态、代码块结构、六类信息、封面
+│   ├── gates.md                # 门禁与自检命令、参数归属、退出码
+│   ├── notion-ops.md           # L5 归档、改写/重整、取数、状态机
+│   ├── cover-design.md         # 封面视觉与提示词
+│   ├── style-library.md        # 17 种风格（S01–S17）
+│   ├── standard-delivery.md    # 成图验收后的交付打包
+│   └── cloud-start.md          # 云端启动与仓维护
+├── scripts/              # 5 个：notion_archive / notion_verify / l4_presence_check / l4_structure_check / asset_ref
+├── tools/                # 5 个：grammar_check / l4_case_check / title_intro_check / repo_legacy_scan / cloud_check
+│   ├── skill-audit/            # 静态检查（skill_lint）
+│   └── notion-readonly/        # 只读取证脚本
+└── docs/                 # 工作记录：适配包（canonical）/ 需求 / 计划书 / 证据 / 样例
 ```
 
 > 历史批量模式参考（fruit / vegetable / food / animal / career 等 21 份 `*-series-batch-pattern.md`）

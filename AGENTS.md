@@ -1,6 +1,6 @@
 # Codex 绘本独立工作区
 
-工作分支：**`dev`**（当前开发分支）；**`main`** 为稳定线；`codex/picturebook-adaptation` 为 v11 基线、**已冻结**（不再改）。基线 `9288959`，当前版本 `13.1.0`。
+工作分支：**`dev`**（当前开发分支）；**`main`** 为稳定线；`codex/picturebook-adaptation` 为 v11 基线、**已冻结**（不再改）。基线 `9288959`，当前版本 `14.0.0`。
 创作读取本目录 SKILL.md 对应章节及 SOUL.md，不加载 Hermes 全局 skill、配置或记忆。
 本目录是独立 Git 仓库，不使用 Hermes 检出、符号链接或共享 worktree。
 上游规则中的 Hermes 路径、代理、live 检出维护和全局记忆不在本副本执行。内容规范与逐步确认规则继续有效；Codex 直接承担绘本角色。
@@ -10,7 +10,7 @@
 成图验收后自动执行 references/standard-delivery.md：JPEG转换压缩、页序命名、ZIP打包、上传Notion「交付文件」、更新「已生图」并独立回读；不另等打包上传指令。用户当次暂停或仅预览要求优先。
 
 来源：https://github.com/leonluo2008-ops/picturebook-creator
-来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；导入基线版本：11.1.7；**当前版本：13.1.0**。
+来源分支：PC1024-3；来源提交：5f2f49a8c22b2a5aefe216cd1813f1ad4f9dda10；导入基线版本：11.1.7；**当前版本：14.0.0**。
 通过 GitHub 连接器导入文件快照，upstream-snapshot 是本地导入基线，不含上游 Git 历史。后续更新通过差异比较合入 Codex 分支，不将该基线当作上游历史直接合并。
 
 

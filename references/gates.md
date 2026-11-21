@@ -49,7 +49,7 @@ python scripts/l4_presence_check.py <L4文件.txt> --word <核心词> --expect-p
 python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 --page-words 7=hot,dot,cot
 ```
 
-- **`--expect-pages` 必须传**（含封面）：不传时只校验「解析到的页」，遇到 `- 旁白:`、`**旁白:**` 这类非标准写法会**静默丢页**仍报全过（v2.0 已全量剥离 `\ufeff`，BOM 不再丢页）。领读默认 9 页＝封面 + 8 内页，页数不同按实际传。
+- **`--expect-pages` 必须传**（含封面）：不传时只校验「解析到的页」，遇到 `- 旁白:`、`**旁白:**` 这类非标准写法会**静默丢页**仍报全过（v2.0 已全量剥离 `\ufeff`，BOM 不再丢页；但 **`l4_case_check` 不剥 BOM**，中段 `\ufeff` 会让它少解析一页却仍报「全过」——第 2 道没有页数断言，页数要人工核）。领读默认 9 页＝封面 + 8 内页，页数不同按实际传。
 - **词族拓展页**教学载体是词族词，不要求核心词入画——用 `--page-words <页号>=词1,词2` 逐页指定本页词集（页号 0＝封面，1＝第一个内页）。**不传 `--page-words` ＝ 该页完全不校验**：脚本跳过该页、打印「跳过 N 页」并 **EXIT=0**，不是「按核心词判缺」。所以必须传才有校验。
 - 匹配已加词界 `(?<![a-z])word(?![a-z])`，不再出现 `soa` 命中 `soap`。
 - **它只做字面匹配、不读封面书名**：封面这页仍需人工按书名核对。
@@ -67,7 +67,7 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 | `--max-words` | 只属 structure | 默认 10；只允许 ≤10，超出会被 clamp 并告警 |
 
 - **伙伴词只能重复写 `--word`**：写成空格分隔报 `unrecognized arguments`。写成逗号串 `--word glue,blue` 的结果**按工具分**：`grammar_check` / `l4_case_check` 把它当成一个词、**照样 EXIT=0**（机审扫不到任何东西，零校验）；`l4_presence_check` 有 `WORD_OK` 单词语法校验，直接 **exit 2**；`l4_structure_check` 也把它当一个词，会按「目标词全书」大面积判红（**exit 1**），别拿它当参数验证。
-- 退出码契约：`0` 过、`1` 有违规、`2` 输入或参数错误。**按工具分**：`grammar_check` / `l4_case_check` 读不到文件返回 **1**（它们自身不产生 2，除 argparse 参数错误）；`l4_presence_check` / `l4_structure_check` / `title_intro_check` 读不到文件返回 **2**。**看到 2 不要当 1 修**，先看参数与文件路径。
+- 退出码契约：`0` 过、`1` 有违规、`2` 输入或参数错误。**按工具分**：`grammar_check` / `l4_case_check` 读不到文件返回 **1**；它们自身产生 2 只有两种情况——argparse 参数错误，或 `grammar_check` 解析到 0 行旁白（见 §2）；`l4_presence_check` / `l4_structure_check` / `title_intro_check` 读不到文件返回 **2**。**看到 2 不要当 1 修**，先看参数与文件路径。
 
 ## §4 两道自检（严于门禁，不进缺一不过）
 
@@ -83,7 +83,7 @@ python tools/title_intro_check.py --file <标题简介文件.md> --word <核心�
 ## §5 Windows 环境
 
 - **先设 `$env:PYTHONUTF8=1`**：默认控制台下脚本里的 `✗` 会抛 `UnicodeEncodeError`，修复清单丢失、只剩堆栈。〔证据〕
-- 脚本参数里的文件路径用 Windows 原生格式（`C:/Users/...`）；git-bash 风格 `/c/Users/...` 会被 `Path()` 拼成 `\\c\\...` 直接 FileNotFoundError。
+- 脚本参数里的文件路径用 Windows 原生格式（`C:/Users/...`）；git-bash 风格 `/c/Users/...` 直接 **FileNotFoundError**（脚本用 `open()` 直读，不经 `Path` 归一，所以不认这种路径）。
 - **五道本地检查脚本**（grammar / l4_case / presence / structure / title_intro）零依赖、只读本地文件，不联网，不需要 `NOTION_API_KEY`；`notion_verify.py` / `notion_archive.py` 这类 Notion 脚本没有 key 会直接退出（见 §6）。
 
 ## §6 归档与交付的判据
