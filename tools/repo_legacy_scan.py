@@ -30,12 +30,16 @@ LEGACY = [
     "六视图", "2行3列", "六个视角", "语境重复页", "定稿参考", "audit_ledger",
     "每页必须标注", "huiben-v2", "硬上限 15 词", "超过10个英文词",
     "短句串联",  # 2026-11-21 G4 翻案：词族页英文列改为词表，此口径已废
+    "首音族",    # 2026-11-21 所有者裁定「首音族不要」：只准同尾族
 ]
 SKIP_DIRS = {".git", "__pycache__", ".venv", "projects", "作品", "node_modules"}
 HISTORY_FILES = {"CHANGELOG.md"}
 HISTORY_PREFIX = "RELEASE_NOTES_v"
 SELF_FILES = {"dangling-whitelist.txt", "repo_legacy_scan.py"}  # 本脚本含搜索词表，需自排除
 # 允许「作为旧口径示例/凭据路径」出现的位置（文件: 行内必须同时含这些词才算合法）
+# 否定语境：旧词出现在「不采用 / 不要 / 已废 / 撤销」这类否定句里属合法（规则翻案的说明句）
+NEGATION = ("不采用", "不要", "已废", "撤销", "作废", "已翻案")
+
 CONTEXT_OK = {
     "SKILL.md": ["旧档", "作废", "漂移", "不再", "已改", "hermes", "HERMES"],
     "README.md": ["历史", "存档", "已移出", "hermes"],
@@ -73,6 +77,8 @@ def main():
                     continue
                 # 判定是否属于合法历史提及
                 ok = (base in HISTORY_FILES) or base.startswith(HISTORY_PREFIX) or (base in SELF_FILES)
+                if not ok and any(neg in ln for neg in NEGATION):
+                    ok = True  # 否定语境：规则翻案的说明句，不是残留
                 if not ok:
                     ctxs = CONTEXT_OK.get(base) or CONTEXT_OK.get(rel)
                     if ctxs and any(c in ln for c in ctxs):

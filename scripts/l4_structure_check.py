@@ -146,10 +146,22 @@ def main():
                     issues.append("[%s] 词族页英文列不是词表形态（G4：只许逗号分隔的单词，"
                                   "不许句子/引导句）：%r" % (no, en_seg[:50]))
                 else:
-                    n_fam = len([x for x in re.split(r"[,，]", en_seg.rstrip(".")) if x.strip()])
+                    toks = [x.strip().lower() for x in re.split(r"[,，]", en_seg.rstrip(".")) if x.strip()]
+                    n_fam = len(toks)
                     if n_fam < 2 or n_fam > 4:
                         issues.append("[%s] 词族页词数 %d 个，应为 2–4 个（G6：常规 2–3、最多 4）"
                                       % (no, n_fam))
+                    # R8（2026-11-21 所有者裁定「首音族不要」）：词族词必须共享同一词尾 ≥2 字符
+                    if n_fam >= 2:
+                        _suf = toks[0]
+                        for _t in toks[1:]:
+                            _i = 0
+                            while _i < min(len(_suf), len(_t)) and _suf[-1 - _i] == _t[-1 - _i]:
+                                _i += 1
+                            _suf = _suf[len(_suf) - _i:] if _i else ""
+                        if len(_suf) < 2:
+                            issues.append("[%s] 词族页不是同尾族（共同词尾 %r，需 ≥2 字符）：%s"
+                                          "——首音族不采用（2026-11-21 裁定）" % (no, _suf, en_seg[:40]))
             if family_words:
                 miss = [w for w in family_words if not re.search(
                     r"(?<![A-Za-z])" + re.escape(w) + r"(?![A-Za-z])", pr, flags=re.I)]
