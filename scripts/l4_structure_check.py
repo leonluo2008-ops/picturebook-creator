@@ -69,7 +69,7 @@ def main():
     args.family_words = [w.strip() for w in args.family_words.split(",") if w.strip()]
 
     try:
-        text = open(args.l4file, encoding="utf-8").read()
+        text = open(args.l4file, encoding="utf-8-sig").read()
     except OSError as e:
         print("读不到文件: %s" % e)
         return 1

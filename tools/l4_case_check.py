@@ -125,7 +125,7 @@ def main():
     args = ap.parse_args()
 
     try:
-        text = open(args.l4file, encoding='utf-8').read()
+        text = open(args.l4file, encoding='utf-8-sig').read()
     except OSError as e:
         print(f"读不到文件: {e}")
         sys.exit(1)
