@@ -108,7 +108,7 @@ def parse(text):
     rows = []
     for line in text.splitlines():
         line = line.strip().strip('|')
-        if not line or set(line) <= set('-: '):
+        if not line or set(line) <= set('-:| '):  # markdown 分隔行 |---| 剥掉两端竖线后仍含 |，必须一起豁免
             continue
         parts = [p.strip() for p in line.split('|')]
         if len(parts) < 3 or parts[0] in ('页码', '序号'):

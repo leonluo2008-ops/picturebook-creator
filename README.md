@@ -271,6 +271,9 @@ picturebook-creator/
 ├── README.md             # 本文件
 ├── CHANGELOG.md          # 版本说明
 ├── test-prompts.json     # 触发词回归用例
+├── .gitignore            # 忽略 outputs/ 与本地凭据
+├── RELEASE_NOTES_*.md    # 历史版本发布说明（v10 / v13）
+├── projects/             # 按排产号存的作品目录（本地工作副本）
 ├── references/           # 9 个专题细则，按 SKILL「参考」节按需加载
 │   ├── flow.md                 # L1–L3.5 五步动作、输出模板、确认词表、口语门禁
 │   ├── rules.md                # 规则总集（9 主题）+ 裁定清单 + 待验证假设
@@ -285,7 +288,7 @@ picturebook-creator/
 ├── tools/                # 5 个：grammar_check / l4_case_check / title_intro_check / repo_legacy_scan / cloud_check
 │   ├── skill-audit/            # 静态检查（skill_lint）
 │   └── notion-readonly/        # 只读取证脚本
-└── docs/                 # 工作记录：适配包（canonical）/ 需求 / 计划书 / 证据 / 样例
+└── docs/                 # 工作记录：适配包(canonical)/需求/计划书/证据/参考图盘点/交接索引/W3映射/nodes样例
 ```
 
 > 历史批量模式参考（fruit / vegetable / food / animal / career 等 21 份 `*-series-batch-pattern.md`）
