@@ -133,6 +133,8 @@ def check_bilingual(page, page_no, is_cover):
             out.append(f"[{page_no}] 封面旁白 '/' 前(中文标题)未出现汉字: {nar[:40]}")
         if not lat.search(right):
             out.append(f"[{page_no}] 封面旁白 '/' 后(英文标题)未出现拉丁字母: {nar[:40]}")
+        if cjk.search(right):
+            out.append(f"[{page_no}] 封面旁白 '/' 后应为英文书名，却含汉字: {right.strip()[:30]}")
         return out
     if nar.count('/') != 1:
         return [f"[{page_no}] 旁白行必须是「英文 / 中文」双语(G8 裁定, 纯英文不合规), 实际: {nar[:50]}"]

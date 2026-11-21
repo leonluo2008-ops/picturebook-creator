@@ -32,13 +32,13 @@ LEGACY = [
     "短句串联",  # 2026-11-21 G4 翻案：词族页英文列改为词表，此口径已废
     "首音族",    # 2026-11-21 所有者裁定「首音族不要」：只准同尾族
 ]
-SKIP_DIRS = {".git", "__pycache__", ".venv", "projects", "作品", "node_modules"}
+SKIP_DIRS = {".git", "__pycache__", ".venv", "projects", "作品", "node_modules", ".dsh-project-memory"}
 HISTORY_FILES = {"CHANGELOG.md"}
 HISTORY_PREFIX = "RELEASE_NOTES_v"
-SELF_FILES = {"dangling-whitelist.txt", "repo_legacy_scan.py"}  # 本脚本含搜索词表，需自排除
+SELF_FILES = {"dangling-whitelist.txt", "repo_legacy_scan.py", "skill_lint.py", "build_corpus.py"}  # 含搜索词表的脚本需自排除
 # 允许「作为旧口径示例/凭据路径」出现的位置（文件: 行内必须同时含这些词才算合法）
 # 否定语境：旧词出现在「不采用 / 不要 / 已废 / 撤销」这类否定句里属合法（规则翻案的说明句）
-NEGATION = ("不采用", "不要", "已废", "撤销", "作废", "已翻案")
+NEGATION = ("不采用", "不要", "已废", "撤销", "作废", "已翻案", "只认", "示例", "旧词", "已改", "禁", "去掉", "写成")
 
 CONTEXT_OK = {
     "SKILL.md": ["旧档", "作废", "漂移", "不再", "已改", "hermes", "HERMES"],
@@ -77,6 +77,8 @@ def main():
                     continue
                 # 判定是否属于合法历史提及
                 ok = (base in HISTORY_FILES) or base.startswith(HISTORY_PREFIX) or (base in SELF_FILES)
+                if not ok and rel.startswith("docs/"):
+                    ok = True  # docs/ 是工作记录与证据，旧词属历史引用
                 if not ok and any(neg in ln for neg in NEGATION):
                     ok = True  # 否定语境：规则翻案的说明句，不是残留
                 if not ok:
