@@ -1,0 +1,178 @@
+# B626 · pot · v13.0.0 · 四道门禁原始输出与退出码
+
+- 执行环境：Windows / PowerShell 5.1；`$env:PYTHONUTF8='1'`；工作目录 = `E:\OneDrive\工作文件夹\儿童绘本\codex-workspace`
+- 执行时间：2026-11-21 14:00:10
+- 被检文件：`docs\nodes\V7b-pot-v13\03-narration.md`、`docs\nodes\V7b-pot-v13\04-L4.txt`
+- 结果：**四条门禁全部 exit 0，首轮即过，未返工。**
+
+## 门禁 1 · 旁白语法 / 大小写 / 目标词双语同现
+
+```
+python picturebook-creator\tools\grammar_check.py docs\nodes\V7b-pot-v13\03-narration.md --word pot
+```
+
+原始输出：
+
+```
+解析 10 行旁白, 核对目标词 ['pot']
+
+[建议人工确认]
+  ⚠ [P8] 中英句末标点数不对应(英文2 vs 中文1)——仅提示,读着顺口就不改
+```
+
+**exit code = 0**
+
+> 说明：① 「解析 10 行」是因为 markdown 分隔行 `|---|---|---|` 也被算作一行（脚本行为，不影响判定）；实际数据行 9 行（封面 + 8 内页）。② P8 的 ⚠ 是软提醒：英文两句 `Find the pot.` / `Which one is it?`、中文一句流水「找一找，哪一个是 pot？」，按 SKILL「标点对应是软提醒不是硬闸，断句节奏由 L3.5 口语门禁裁决」，读着顺口不改。
+
+## 门禁 2 · 画面文字形态（每页字母大小写与当页旁白一致）
+
+```
+python picturebook-creator\tools\l4_case_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot
+```
+
+原始输出：
+
+```
+解析 9 页 + 引导语区, 核对目标词 ['pot']
+画面文字形态全过——每页字母大小写与当页旁白文稿一致
+```
+
+**exit code = 0**
+
+## 门禁 3 · 逐页「在不在」（场景描述段必须出现 pot 字面）
+
+```
+python picturebook-creator\scripts\l4_presence_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot
+```
+
+原始输出：
+
+```
+解析 9 页，核对目标词 ['pot'] 的「在不在」
+跳过 1 页（词族拓展页，教学载体是词族词）: P7
+逐页在不在：全过——每页场景段都能看到目标词字面
+```
+
+**exit code = 0**
+
+> 说明：`P7 跳过`是本轮验证的核心路径——脚本按 v13「词族拓展页豁免核心词入画」自动跳过该页并**点名**。跳过之后，P7 的「每个词族词都在位」**没有任何机器断言兜底**，见下方「补充门禁 0」。
+
+## 门禁 4 · 结构门禁（新增：块存在性 / 词数 / 构图三要素 / 比例 / 页面类型 / Pn 前缀）
+
+```
+python picturebook-creator\scripts\l4_structure_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot
+```
+
+原始输出：
+
+```
+解析 9 页；核对：块存在性 / 词数≤10 / 构图三要素 / 比例 / 页面类型 / Pn 前缀
+| 页 | 比例 | 页面类型 | 词数 | 角色 | 场景 | 构图 | 三要素 |
+|---|---|---|---|---|---|---|---|
+| 封面 | 3:4 | 认知页 | 1 | ✓ | ✓ | ✓ | ✓ |
+| P1 | 16:9 | 语境页 | 5 | ✓ | ✓ | ✓ | ✓ |
+| P2 | 16:9 | 语境页 | 6 | ✓ | ✓ | ✓ | ✓ |
+| P3 | 16:9 | 语境页 | 7 | ✓ | ✓ | ✓ | ✓ |
+| P4 | 16:9 | 语境页 | 7 | ✓ | ✓ | ✓ | ✓ |
+| P5 | 16:9 | 语境页 | 6 | ✓ | ✓ | ✓ | ✓ |
+| P6 | 16:9 | 语境页 | 6 | ✓ | ✓ | ✓ | ✓ |
+| P7 | 16:9 | 词族拓展页 | 8 | ✓ | ✓ | ✓ | ✓ |
+| P8 | 16:9 | 互动练习页 | 7 | ✓ | ✓ | ✓ | ✓ |
+
+结构门禁全过——块存在性 / 词数 / 构图三要素 / 比例 / 页面类型 / Pn 前缀 均合规
+```
+
+**exit code = 0**
+
+> 说明：封面「词数 = 1」是脚本口径——它取 `旁白: 封面（中文 / 英文）` 行里 `/` **之前**的英文 token，即中文标题里的 `Pot`；封面英文书名 `My Little Pot` 实为 **3 词**。P7「词数 = 8」＝ `Pot, hot, dot, cot. Read them with me!`。
+
+## 补充门禁 0 · P7「每个词族词都在位」（v13 尚无此机器门禁，本轮自建临时断言）
+
+> 这是本轮验证暴露的**规则缺口**：`l4_presence_check.py` 对词族页只做「跳过 + 点名」，不做反向断言；`l4_structure_check.py` 对词族页也直接放过「目标词入画」块。所以「页内列出的每个词族词都在画面里」目前**纯人工核对**。为留下可复现证据，本轮用一段临时脚本（`%TEMP%\pot_family_check.py`，不进项目仓、不改 SKILL.md）做了同口径断言：
+
+```python
+# 取 P7（页面类型=词族拓展页）的「构图要求」之前的场景描述段，逐个断言 pot/hot/dot/cot 字面在位
+```
+
+原始输出：
+
+```
+word-family page narration: Pot, hot, dot, cot. Read them with me!
+scene-segment length: 861
+  pot  occurrences in scene segment: 3
+  hot  occurrences in scene segment: 3
+  dot  occurrences in scene segment: 3
+  cot  occurrences in scene segment: 3
+rime fragment '-ot' as standalone label present: False
+FAMILY PRESENCE OK: all four family words appear in the P7 scene segment
+```
+
+**exit code = 0**
+
+> 注：这是**文本代理**，能证明「四个词在场景描述段里各自写了 3 次、且没有单列 `-ot` 词尾」，不能替代成图验收（画面是否真的画出四张小图仍需出图后人工核）。
+
+## 补充探针 · 词族词能否被现有 `--word` 机制覆盖（为 `06-v13-path-check.md` 的缺口取证，不是交付门禁）
+
+> 问题：词族页的 hot / dot / cot 要不要、能不能被机审覆盖？把四个词一起传给三个脚本试一遍。
+
+**探针 A · `l4_case_check.py` 传四个词**
+
+```
+python picturebook-creator\tools\l4_case_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot --word hot --word dot --word cot
+```
+
+```
+解析 9 页 + 引导语区, 核对目标词 ['pot', 'hot', 'dot', 'cot']
+画面文字形态全过——每页字母大小写与当页旁白文稿一致
+```
+
+**exit code = 0**（形态门禁可以按词逐个追加，覆盖面能补齐）
+
+**探针 B · `l4_presence_check.py` 传四个词**
+
+```
+python picturebook-creator\scripts\l4_presence_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot --word hot --word dot --word cot
+```
+
+```
+解析 9 页，核对目标词 ['pot', 'hot', 'dot', 'cot'] 的「在不在」
+跳过 1 页（词族拓展页，教学载体是词族词）: P7
+
+[必须修复] 24 处
+  ✗ [封面] 场景描述段未出现目标词 'hot'——教学载体丢失（画面上不会有这个词，机审的形态检查也发现不了）
+  ✗ [封面] 场景描述段未出现目标词 'dot'——…
+  ✗ [封面] 场景描述段未出现目标词 'cot'——…
+  ✗ [P1] 场景描述段未出现目标词 'hot'——…   （P2–P6、P8 同样各 3 处，共 8 页 × 3 词 = 24 处，逐条输出略）
+```
+
+**exit code = 1**
+
+> 结论：`l4_presence_check.py` 把 `--word` 词集**无差别套到每一页**，无法表达「这几个词只需要在词族页出现」。所以词族页的热/点/床三个词：
+> - 传进去 → 除 P7 外每页都报缺失（24 处误报，EXIT=1）；
+> - 不传 → P7 的三个词在形态与存在两道门禁里**同时失去覆盖**（P7 又被 presence 跳过）。
+> 详见 `06-v13-path-check.md` 缺口 G2。
+
+**探针 C · `grammar_check.py` 传四个词**
+
+```
+python picturebook-creator\tools\grammar_check.py docs\nodes\V7b-pot-v13\03-narration.md --word pot --word hot --word dot --word cot
+```
+
+```
+解析 10 行旁白, 核对目标词 ['pot', 'hot', 'dot', 'cot']
+
+[建议人工确认]
+  ⚠ [P8] 中英句末标点数不对应(英文2 vs 中文1)——仅提示,读着顺口就不改
+```
+
+**exit code = 0**（旁白表可以按词逐个追加，四词同现在 P7 行是齐的）
+
+## 汇总
+
+| 门禁 | 命令（工作目录 = codex-workspace） | exit code |
+|---|---|---|
+| 补充门禁 0（P7 四个词族词在位，自建临时断言） | `python %TEMP%\pot_family_check.py`（见上节源码说明） | **0** |
+| grammar_check.py | `python picturebook-creator\tools\grammar_check.py docs\nodes\V7b-pot-v13\03-narration.md --word pot` | **0** |
+| l4_case_check.py | `python picturebook-creator\tools\l4_case_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot` | **0** |
+| l4_presence_check.py | `python picturebook-creator\scripts\l4_presence_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot` | **0**（跳过 P7 并点名） |
+| l4_structure_check.py | `python picturebook-creator\scripts\l4_structure_check.py docs\nodes\V7b-pot-v13\04-L4.txt --word pot` | **0** |

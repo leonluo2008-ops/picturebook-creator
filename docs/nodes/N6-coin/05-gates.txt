@@ -1,0 +1,96 @@
+# B620 · coin · L4 三道门禁原始输出
+
+执行环境：Windows / PowerShell，`$env:PYTHONUTF8='1'`，工作目录 = `picturebook-creator`
+执行时间：2026-11-21 12:48:48
+
+## 门禁1 旁白语法/大小写/目标词双语同现
+
+```
+python tools\grammar_check.py <N6-coin>\03-narration.md --word coin
+```
+
+原始输出：
+
+```
+解析 10 行旁白, 核对目标词 ['coin']
+语法审计全过——大小写/标点/目标词同现均合规
+```
+
+**exit code = 0**
+
+## 门禁2 画面文字形态（每页大小写与旁白一致）
+
+```
+python tools\l4_case_check.py <N6-coin>\04-L4.txt --word coin
+```
+
+原始输出：
+
+```
+解析 9 页 + 引导语区, 核对目标词 ['coin']
+画面文字形态全过——每页字母大小写与当页旁白文稿一致
+```
+
+**exit code = 0**
+
+## 门禁3 逐页「在不在」（场景段必须出现 coin 字面）
+
+```
+python scripts\l4_presence_check.py <N6-coin>\04-L4.txt --word coin
+```
+
+原始输出：
+
+```
+解析 9 页，核对目标词 ['coin'] 的「在不在」
+逐页在不在：全过——每页场景段都能看到目标词字面
+```
+
+**exit code = 0**
+
+## 汇总
+
+| 门禁 | 命令 | exit code |
+|---|---|---|
+| grammar_check.py | `python tools\grammar_check.py docs\nodes\N6-coin\03-narration.md --word coin` | 0 |
+| l4_case_check.py | `python tools\l4_case_check.py docs\nodes\N6-coin\04-L4.txt --word coin` | 0 |
+| l4_presence_check.py | `python scripts\l4_presence_check.py docs\nodes\N6-coin\04-L4.txt --word coin` | 0 |
+
+三道全过，首轮即 exit 0（未做任何返工）。
+
+---
+
+## 附加证据 A：门禁活性负控（不是空跑）
+
+把交付稿各复制一份到临时目录、各注入一处故意违规，确认三道门禁都会 exit 1 并点名到页——证明上面的 0 是真检查出来的 0。
+
+| 负控 | 注入的违规 | 结果 |
+|---|---|---|
+| 1 | 03-narration.md 的 P3 中文列 `coin` → `Coin` | **exit 1**：`✗ [P3] 中文列'Coin'(Title Case)应为'coin'(中文句夹用普通词一律小写,CY/T 154-2017 7.1)` |
+| 2 | 04-L4.txt 的 P2 页内 `coin` → `Coin` | **exit 1**：`✗ [P2] 画面'Coin'×1(Title Case)与文稿不一致——当页旁白形态为 ['coin'], 改为文稿形态或全小写` |
+| 3 | 04-L4.txt 的 P7 页场景段 `coin` → `xxx` | **exit 1**：`✗ [P7] 场景描述段未出现目标词 'coin'——教学载体丢失（画面上不会有这个词，机审的形态检查也发现不了）` |
+
+## 附加证据 B：结构自检（独立于三道门禁）
+
+```
+页数 = 9
+比例序列 = ['3:4', '16:9', '16:9', '16:9', '16:9', '16:9', '16:9', '16:9', '16:9']
+页面类型序列 = ['认知页', '语境页', '语境页', '语境页', '语境页', '语境页', '语境页', '语境页', '互动练习页']
+旁白行数 = 9 / 比例行数 = 9 / 页面类型行数 = 9 / 生图提示词行数 = 9
+三反引号行 = 0 | 三连横线行 = 0 | 含 http/URL 的页 = []
+逐页：构图要求=True 约80%=True 约10%=True 背景延伸填充到画面边缘=True 关键特征串=True 场景段有coin=True 结尾=四边裁切  （封面 + P1–P8 全 9 页一致）
+英文词数（封面 3, P1–P8 = 6/5/6/7/7/5/6/4，均 ≤8）
+中文正文字数（去英文去标点：6/8/8/9/8/9/8/9/9，内页均落在 8–14）
+封面行中文含大写 Coin = True | 内页中文全为小写 coin = True
+```
+
+## 注 1：门禁1 输出「解析 10 行」不是多了一页
+
+`tools/grammar_check.py` 的 `parse()` 先 `line.strip().strip('|')` 再判 `set(line) <= set('-: ')` 以跳过表格分隔行；markdown 分隔行 `|---|---|---|` 去掉首尾 `|` 后**内部仍含 ` | `**，因此没被跳过，被当成一行数据（页名 `---`，无英文字母、无中文 token，不产生任何判定）。实际数据行是 9 行（封面 + P1–P8）。这是脚本既有行为，本轮按「不修改 SKILL.md / 不擅改门禁脚本」的约束未动它，仅在此记录。
+
+## 注 2：本轮未做的事（边界）
+
+- 没读 `picturebook-creator/projects/` 下任何 `L4*.txt` / `l4*.txt`；旁白写法只参考了 `projects/B320/narration.md`（该样本含 `S-O-A-P` 拆读行，属旧口径，本轮按现行 SKILL「整词领读、禁止拆音」不沿用）。
+- 没写 Notion、没 git add/commit/push、没改 SKILL.md；没有访问 `E:\OneDrive\工作文件夹\儿童绘本` 下 codex-workspace 以外的任何目录（唯一读到的仓外文件是 `C:\Users\leon3\.dsh\profiles\desktop\cordis.patch.yml`，只读，用于确认模型路由行）。
+- 参考图未在本轮重新下载核对：角色外观串取自 L1 委派说明中对资产库「3D皮克斯小女孩」的目视核对结论（三视图 / 浅暖白底 / 棕色双丸子头橙发圈 / 橙裙白围裙黑皮鞋 / 空手）。若需与资产图逐项对齐，需另跑 `scripts/asset_ref.py --name 3D皮克斯小女孩 --download <路径>` 后做视觉比对。
+

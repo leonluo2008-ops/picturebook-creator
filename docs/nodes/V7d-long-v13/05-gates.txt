@@ -1,0 +1,94 @@
+# B110 · long · v13.0.0 五道门禁原始输出与出口码
+
+> 运行环境：Windows + PowerShell，**`PYTHONUTF8=1`**（不设时 GBK 控制台下 `✗` 会抛 `UnicodeEncodeError`）。
+> 运行目录：`E:\OneDrive\工作文件夹\儿童绘本\codex-workspace`
+> 采集方式：对**最终交付版**的 `03-narration.md` / `04-L4.txt` / `02-title-intro.md` 逐条重跑，经 `subprocess` 捕获 stdout+stderr（`encoding="utf-8"`）后**原样落盘**，未做任何重排或删行；exit code 取自进程返回码。
+> 结果：**5/5 exit 0，第 1 轮即全绿，未进入修复轮**（SKILL 允许最多 3 轮，本轮 0 轮）。
+> 两条加参已在对应小节里写明原因（词族拓展页 P7 的 `--page-words` 与 `--family-words`）。
+
+## 门 1／旁白语法与目标词双语同现（grammar_check）
+
+检查对象：`03-narration.md`（9 行旁白：封面 + P1–P8）
+
+```text
+> python picturebook-creator\tools\grammar_check.py docs\nodes\V7d-long-v13\03-narration.md --word long
+解析 10 行旁白, 核对目标词 ['long']
+
+[建议人工确认]
+  ⚠ [P2] 中英句末标点数不对应(英文2 vs 中文1)——仅提示,读着顺口就不改
+```
+
+**exit code: 0**
+
+## 门 2／画面文字形态＝当页旁白形态（l4_case_check）
+
+检查对象：`04-L4.txt`（9 页 + 引导语区；封面只许出现 Title Case `Long`，内页只许小写 `long`）
+
+```text
+> python picturebook-creator\tools\l4_case_check.py docs\nodes\V7d-long-v13\04-L4.txt --word long
+解析 9 页 + 引导语区, 核对目标词 ['long']
+画面文字形态全过——每页字母大小写与当页旁白文稿一致
+```
+
+**exit code: 0**
+
+## 门 3／「在不在」逐页存在性（l4_presence_check）
+
+**相对 VERIFY 原式的加参说明**：本书 P7 是词族拓展页（0=封面，7=第 7 页），按 VERIFY 条款加了 `--page-words "7=long,song,gong,strong"`；其余 8 页仍由 `--word long` 逐页断言。
+
+```text
+> python picturebook-creator\scripts\l4_presence_check.py docs\nodes\V7d-long-v13\04-L4.txt --word long --expect-pages 9 --page-words "7=long,song,gong,strong"
+解析 9 页；核对目标词 ['long'] 的「在不在」
+按页指定词集：P7=long,song,gong,strong
+逐页在不在：全过——每页场景段都能看到目标词字面
+注意：本脚本只做字面匹配，不读封面书名；封面那页需人工按书名校对。
+```
+
+**exit code: 0**
+
+## 门 4／L4 结构（块存在性 / 词数 / 构图三要素 / 比例 / 页面类型 / Pn 前缀）
+
+**相对 VERIFY 原式的加参说明**：按 VERIFY 条款加了 `--family-words song,gong,strong`（该页教学载体是词族词，不要求核心词入画）。
+
+```text
+> python picturebook-creator\scripts\l4_structure_check.py docs\nodes\V7d-long-v13\04-L4.txt --word long --expect-pages 9 --family-words song,gong,strong
+解析 9 页；自检项：块存在性(3/6 类+目标词) / 词数≤10 / 构图三要素 / 比例 / 页面类型 / Pn 前缀
+| 页 | 比例 | 页面类型 | 词数 | 角色 | 场景 | 构图 | 80% | 10% | 背景铺边 | 目标词 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 封面 | 3:4 | 认知页 | 3 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P1 | 16:9 | 语境页 | 5 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P2 | 16:9 | 语境页 | 8 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P3 | 16:9 | 语境页 | 7 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P4 | 16:9 | 语境页 | 7 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P5 | 16:9 | 语境页 | 8 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P6 | 16:9 | 语境页 | 7 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P7 | 16:9 | 词族拓展页 | 8 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| P8 | 16:9 | 互动练习页 | 7 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+-- 全书级约束 --
+  内页数 8（要求 8–16）；目标词全书 9 次（原形+复数，要求 ≥8）
+  中文内页字数 8–11（硬上限 30）
+
+结构门禁全过（自检口径，严格于交付门禁）
+```
+
+**exit code: 0**
+
+## 门 5／标题与简介判据（title_intro_check）
+
+检查 `02-title-intro.md`：3 条标题 + 3 条简介（含词 / 位置 / 字数 / 括注 / 禁词 / 简介首句场景词 / 目标词次数）
+
+```text
+> python picturebook-creator\tools\title_intro_check.py --file docs\nodes\V7d-long-v13\02-title-intro.md --word long
+检查 02-title-intro.md（核心词 long）
+  标题 3 条、简介 3 条
+
+标题/简介判据全过（写稿自检口径；语义地基无法机检）
+```
+
+**exit code: 0**
+
+## 附：五道门之外的两个人眼检查（机审查不到，本轮已逐页做）
+
+1. **封面书名人工核对**（`l4_presence_check` 不读书名、`l4_case_check` 只校形态）：封面提示词里引号内的书名逐字为 `"So Very Long"`，与 `03-narration.md` 封面行英文、`02-title-intro.md` 采用条 #1 的英文列**三处逐字一致**。
+2. **词族页四词在位**（脚本按 `--family-words` 只做字面包含）：该页提示词里 `long / song / gong / strong` 四个小写整词各自有独立小图承载（长围巾 / 音符 / 铜锣 / 举石头鼓起肌肉的小手），没有单独拆出的共同词尾 `-ong`。
