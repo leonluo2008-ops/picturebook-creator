@@ -117,8 +117,8 @@ def check_page(page, page_no, words):
             n = norm(tok)
             if n in exp:
                 continue  # 与文稿形态一致
-            if n.lower() in _word_forms(word) and not is_cover:
-                continue  # 全小写=词典词头形态, 非封面页放行
+            if n == n.lower() and n.lower() in _word_forms(word) and not is_cover:
+                continue  # **全小写**才放行（缺 n==n.lower() 会让内页检查恒真，2026-11-21 修）
             kind = '全大写' if n == word.upper() else ('Title Case' if n == word.capitalize() else '混合形态')
             issues.append(
                 f"[{page_no}] 画面'{tok}'×{cnt}({kind})与文稿不一致——当页旁白形态为 {sorted(exp) or '未出现'}, "

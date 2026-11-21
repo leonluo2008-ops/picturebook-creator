@@ -40,10 +40,8 @@ def word_forms(word):
     out = {w, w + "s", w + "es"}
     if len(w) >= 2 and w.endswith("y") and w[-2] not in "aeiou":
         out.add(w[:-1] + "ies")
-    if w.endswith("f") and len(w) >= 2:
-        out.add(w[:-1] + "ves")
-    if w.endswith("fe") and len(w) >= 3:
-        out.add(w[:-2] + "ves")
+    # 注：不按「f/fe → ves」通用改写——那会让 safe→saves、cafe→caves 这类误命中。
+    # 需要 ves 的词（leaf/knife/wolf/shelf/half…）已在 IRREGULAR 表里逐个列出。
     out.update(IRREGULAR.get(w, []))
     return out
 

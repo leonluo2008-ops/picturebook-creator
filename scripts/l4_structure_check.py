@@ -183,8 +183,7 @@ def main():
                 fam_note.append("%s 是词族拓展页，未提供 --family-words，词族词本身未机审（仅查图形化块）" % no)
         else:
             # 双条件：既有「目标词图形化」块，页内也真的出现该词字面（v1 有块即短路，--word 传错也过）
-            word_present = re.search(r"(?<![A-Za-z])" + re.escape(args.word) + r"(?![A-Za-z])",
-                                      pr, flags=re.I) is not None
+            word_present = re.search(forms_pattern(args.word), pr, flags=re.I) is not None
             has_word = ("目标词图形化" in pr) and word_present
 
         rows.append((no, p.get("ratio", ""), ptype, words, has_role, has_scene, has_comp, safety, has_word))

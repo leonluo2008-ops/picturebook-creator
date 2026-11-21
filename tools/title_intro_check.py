@@ -15,6 +15,16 @@
 注意：本脚本是**写稿自检**，不是交付门禁；简介语义（地基是否落在核心义项）无法机检。
 """
 import argparse
+
+# ── 词形口径：与其它门禁共用 tools/wordforms.py（2026-11-21）──
+import os as _os, sys as _sys
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+for _p in (_HERE, _os.path.join(_HERE, '..', 'tools')):
+    if _os.path.isfile(_os.path.join(_p, 'wordforms.py')):
+        _sys.path.insert(0, _os.path.abspath(_p))
+        break
+from wordforms import word_forms, forms_pattern, upper_forms
+
 import io
 import json
 import os
@@ -46,13 +56,13 @@ def check_title(text, word):
             continue
         n += 1
         tag = "标题#%s" % cells[0]
-        if not re.search(r"(?<![A-Za-z])" + re.escape(word) + r"(?![A-Za-z])", en, re.I):
+        if not re.search(forms_pattern(word), en, re.I):
             issues.append("%s 英文列不含目标词：%r" % (tag, en))
-        if not re.search(r"(?<![A-Za-z])" + re.escape(word) + r"(?![A-Za-z])", cn, re.I):
+        if not re.search(forms_pattern(word), cn, re.I):
             issues.append("%s 中文列不含目标词形态：%r" % (tag, cn))
         if re.search(r"[（(]", cn):
             issues.append("%s 中文列含括注：%r" % (tag, cn))
-        if len(re.sub(r"[，,。.、！! ]", "", re.sub(r"(?i)" + re.escape(word), "", cn))) > MAX_TITLE_CHARS:
+        if len(re.sub(r"[，,。.、！! ]", "", re.sub(forms_pattern(word), "", cn, flags=re.I))) > MAX_TITLE_CHARS:
             issues.append("%s 中文主体超过 %d 字：%r" % (tag, MAX_TITLE_CHARS, cn))
         for b in BAN_WORDS:
             if b.lower() in (cn + en).lower():
@@ -68,13 +78,13 @@ def check_intro(text, word):
     intros = []
     for x in re.findall(r"(?m)^>\s*(.+)$", seg):
         x = x.strip()
-        if not re.search(r"(?<![A-Za-z])" + re.escape(word) + r"(?![A-Za-z])", x, re.I):
-            continue
+        # 2026-11-21：原先「不含目标词就 continue」会把 0 次的简介整条丢掉，
+        # 导致 gates.md 声明的「目标词恰 1 次」对 0 次永不生效（假绿）。改为全部纳入判据。
         if re.search(r"[！!]\s*$", x) or x.endswith("。"):
             intros.append(x)
     for k, x in enumerate(intros):
         tag = "简介%s" % "ABC"[k] if k < 3 else "简介#%d" % (k + 1)
-        hits = len(re.findall(r"(?<![A-Za-z])" + re.escape(word) + r"(?![A-Za-z])", x, re.I))
+        hits = len(re.findall(forms_pattern(word), x, re.I))
         if hits != 1:
             issues.append("%s 目标词出现 %d 次（应恰好 1 次）：%r" % (tag, hits, x[:40]))
         first = re.split(r"[。！？!?]", x)[0]
