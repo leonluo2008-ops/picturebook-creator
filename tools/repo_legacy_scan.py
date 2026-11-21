@@ -29,6 +29,7 @@ except Exception:
 LEGACY = [
     "六视图", "2行3列", "六个视角", "语境重复页", "定稿参考", "audit_ledger",
     "每页必须标注", "huiben-v2", "硬上限 15 词", "超过10个英文词",
+    "短句串联",  # 2026-11-21 G4 翻案：词族页英文列改为词表，此口径已废
 ]
 SKIP_DIRS = {".git", "__pycache__", ".venv", "projects", "作品", "node_modules"}
 HISTORY_FILES = {"CHANGELOG.md"}

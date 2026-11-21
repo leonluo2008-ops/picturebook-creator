@@ -16,6 +16,8 @@ import sys
 import re
 import argparse
 
+FAMILY_PAGE = 'P7'  # 词族拓展页在旁白表里的页号；内页数变化时用 --family-page 覆盖
+
 
 def norm(token):
     """连字符归一: F-L-O-O-R → FLOOR"""
@@ -54,7 +56,7 @@ def check_rows(rows, words):
                 # 豁免: P1字母拆解页小写跟读词(大写拆解+小写认读对照是教学惯例)
                 # 豁免: P7词族页演示词(hit/sit/fit)小写展示词头变化是教学设计
                 # 豁免: 连字符词首小写如 c-AT(换词头演示)
-                if not (page in ('P1',) or page == 'P7' or re.match(r'^[a-z]-[A-Z]', sent)):
+                if not (page in ('P1',) or page == FAMILY_PAGE or re.match(r'^[a-z]-[A-Z]', sent)):
                     issues.append(f"[{page}] 英文句首应大写: '{sent[:20]}...'")
         en_all = re.findall(r'[A-Za-z]+', en)
         if en_all and all(w.isupper() for w in en_all) and len(en) > 12 and ',' in en:
@@ -82,8 +84,10 @@ def check_rows(rows, words):
         # 词在中文里消失等于这页没教(better/fast/P8互动页均踩过此坑)
         en_low = en.lower()
         for w in words:
-            if re.search(r'\b' + re.escape(w.lower()) + r'\b', en_low) and not is_cover:
-                if not re.search(r'\b' + re.escape(w.lower()) + r'\b', cn.lower()):
+            # 2026-11-21: CJK 在 Python re 里属 \w，`\bpot\b` 在「小锅pot坐」这种紧贴汉字处失效
+            _pat = r'(?<![A-Za-z])' + re.escape(w.lower()) + r'(?![A-Za-z])'
+            if re.search(_pat, en_low) and not is_cover:
+                if not re.search(_pat, cn.lower()):
                     issues.append(f"[{page}] 英文列含目标词'{w}'但中文列未出现——目标词双语同现缺失(领读核心机制)")
 
 
@@ -116,7 +120,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('narration_file', help='旁白表文件(markdown 表)')
     ap.add_argument('--word', action='append', required=True, help='目标核心词,可重复传入词族伙伴词')
+    ap.add_argument('--family-page', default='P7', help='词族拓展页的页号(默认 P7；内页更多时按实际传)')
     args = ap.parse_args()
+    global FAMILY_PAGE
+    FAMILY_PAGE = args.family_page
 
     try:
         text = open(args.narration_file, encoding='utf-8-sig').read()

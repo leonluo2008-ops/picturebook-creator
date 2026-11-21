@@ -64,9 +64,16 @@ def norm(token):
 
 
 def expected_forms(word, narration, page_no, is_cover):
-    """从当页旁白行提取目标词的文稿形态集合(原文形态 + 连字符归一形态)。"""
+    """从当页旁白行提取目标词的文稿形态集合(原文形态 + 连字符归一形态)。
+
+    v1.1(2026-11-21): 旁白行已是「英文 / 中文」双语, 先按 / 切出英文段再取形态;
+    封面行是「封面（中文 / 英文）」, 英文在后段。不切会让中文列里的大写"洗白"画面错误。
+    """
+    seg = narration
+    if '/' in narration:
+        seg = narration.split('/')[-1] if is_cover else narration.split('/')[0]
     forms = set()
-    for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', narration):
+    for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', seg):
         tok = m.group(0)
         if norm(tok).lower() == word.lower():
             forms.add(norm(tok))
@@ -106,6 +113,39 @@ def check_page(page, page_no, words):
     return issues
 
 
+def check_bilingual(page, page_no, is_cover):
+    """G8(2026-11-21 所有者裁定): L4 旁白行必须双语。
+
+    内页: `英文 / 中文`(英文在前, 后段须含汉字);
+    封面: `封面（中文 / 英文）`(中文在前, 后段须含拉丁字母)。
+    """
+    nar = (page.get('narration') or '').strip()
+    cjk = re.compile(r'[\u4e00-\u9fff]')
+    lat = re.compile(r'[A-Za-z]')
+    out = []
+    if is_cover:
+        if not nar.startswith('封面'):
+            return [f"[{page_no}] 封面旁白行应以「封面（中文标题 / 英文标题）」开头, 实际: {nar[:30]}"]
+        if nar.count('/') != 1:
+            return [f"[{page_no}] 封面旁白行应有且仅有一个 '/' 分隔中英: {nar[:40]}"]
+        left, right = nar.split('/', 1)
+        if not cjk.search(left):
+            out.append(f"[{page_no}] 封面旁白 '/' 前(中文标题)未出现汉字: {nar[:40]}")
+        if not lat.search(right):
+            out.append(f"[{page_no}] 封面旁白 '/' 后(英文标题)未出现拉丁字母: {nar[:40]}")
+        return out
+    if nar.count('/') != 1:
+        return [f"[{page_no}] 旁白行必须是「英文 / 中文」双语(G8 裁定, 纯英文不合规), 实际: {nar[:50]}"]
+    left, right = nar.split('/', 1)
+    if cjk.search(left):
+        out.append(f"[{page_no}] 旁白 '/' 前应为英文(G8: 英文在前), 却含汉字: {left.strip()[:30]}")
+    if not lat.search(left):
+        out.append(f"[{page_no}] 旁白 '/' 前未出现英文: {nar[:40]}")
+    if not cjk.search(right):
+        out.append(f"[{page_no}] 旁白 '/' 后应为中文, 却未出现汉字: {right.strip()[:30]}")
+    return out
+
+
 def check_header(header, words):
     issues = []
     for word, _ in words:
@@ -141,6 +181,7 @@ def main():
         page_no = '封面' if i == 0 else f"P{i}"
         words = [(w, expected_forms(w, page['narration'], page_no, i == 0)) for w in args.word]
         # 全部页面都从旁白行取形态; 旁白没出现该词的页, 该词任何全大写/Title Case变体都会被拦
+        issues += check_bilingual(page, page_no, i == 0)
         issues += check_page(page, page_no, words)
         checked += 1
     issues += check_header(header, [(w, None) for w in args.word])

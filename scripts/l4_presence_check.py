@@ -38,7 +38,7 @@ def parse_pages(text):
         s = line.strip()
         m = re.match(r"^旁白[:：]\s*(.*)$", s)
         if m:
-            cur = {"narration": m.group(1), "prompt": ""}
+            cur = {"narration": m.group(1), "ptype": "", "prompt": ""}
             pages.append(cur)
             continue
         if cur is None:
@@ -47,7 +47,11 @@ def parse_pages(text):
         if m:
             cur["prompt"] = m.group(1)
             continue
-        if re.match(r"^(比例|页面类型)[:：]", s):
+        m2 = re.match(r"^页面类型[:：]\s*(.*)$", s)
+        if m2:
+            cur["ptype"] = m2.group(1).strip()
+            continue
+        if re.match(r"^比例[:：]", s):
             continue
         if cur["prompt"]:
             cur["prompt"] += "\n" + s
@@ -132,8 +136,9 @@ def main():
     issues, skipped, used_page_words = [], [], []
     for i, p in enumerate(pages):
         page_no = "封面" if i == 0 else "P%d" % i
-        if "词族拓展页" in (p.get("prompt") or "") and i not in page_words:
-            pass  # 词族页的判定依赖页面类型字段，见下
+        if "词族拓展页" in (p.get("ptype") or "") and i not in page_words:
+            skipped.append(page_no)
+            continue
         if i in page_words:
             words = page_words[i]
             used_page_words.append((page_no, words))
@@ -147,6 +152,9 @@ def main():
 
     if not args.quiet:
         print("解析 %d 页；核对目标词 %s 的「在不在」" % (len(pages), args.word))
+        if skipped:
+            print("跳过 %d 页（词族拓展页，教学载体是词族词）: %s"
+                  "——这些页请用 --page-words \"<页号>=词1,词2\" 核对" % (len(skipped), ", ".join(skipped)))
         if used_page_words:
             print("按页指定词集：" + "；".join("%s=%s" % (no, ",".join(ws)) for no, ws in used_page_words))
     if issues:

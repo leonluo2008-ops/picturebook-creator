@@ -137,6 +137,19 @@ def main():
         if is_family:
             if family_words and len(family_words) < 2:
                 issues.append("[%s] 传了 %d 个词族词——词族页至少要 2 个同族词，否则名不副实（存量 B261 cloud 只有 1 个词）" % (no, len(family_words)))
+            # G4/G6(2026-11-21 所有者裁定)：英文列必须是词表形态，且词数 2–4
+            en_seg = (p.get("narration") or "").split("/")[0].strip()
+            if en_seg:
+                word_list_ok = re.fullmatch(
+                    r"[A-Za-z][A-Za-z'\-]*(?:\s*[,，]\s*[A-Za-z][A-Za-z'\-]*)*\.?", en_seg)
+                if not word_list_ok:
+                    issues.append("[%s] 词族页英文列不是词表形态（G4：只许逗号分隔的单词，"
+                                  "不许句子/引导句）：%r" % (no, en_seg[:50]))
+                else:
+                    n_fam = len([x for x in re.split(r"[,，]", en_seg.rstrip(".")) if x.strip()])
+                    if n_fam < 2 or n_fam > 4:
+                        issues.append("[%s] 词族页词数 %d 个，应为 2–4 个（G6：常规 2–3、最多 4）"
+                                      % (no, n_fam))
             if family_words:
                 miss = [w for w in family_words if not re.search(
                     r"(?<![A-Za-z])" + re.escape(w) + r"(?![A-Za-z])", pr, flags=re.I)]
@@ -144,8 +157,8 @@ def main():
                 if miss:
                     fam_note.append("%s 缺词族词：%s" % (no, "、".join(miss)))
             else:
-                has_word = ("目标词图形化" in pr) or True
-                fam_note.append("%s 是词族拓展页，未提供 --family-words，该页词族词未机审" % no)
+                has_word = ("目标词图形化" in pr)
+                fam_note.append("%s 是词族拓展页，未提供 --family-words，词族词本身未机审（仅查图形化块）" % no)
         else:
             # 双条件：既有「目标词图形化」块，页内也真的出现该词字面（v1 有块即短路，--word 传错也过）
             word_present = re.search(r"(?<![A-Za-z])" + re.escape(args.word) + r"(?![A-Za-z])",
