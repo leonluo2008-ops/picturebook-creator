@@ -86,7 +86,9 @@ def check_rows(rows, words):
         en_low = en.lower()
         for w in words:
             # 2026-11-21: CJK 在 Python re 里属 \w，`\bpot\b` 在「小锅pot坐」这种紧贴汉字处失效
-            _pat = r'(?<![A-Za-z])' + re.escape(w.lower()) + r'(?![A-Za-z])'
+            # 2026-11-21 修：英文按语法写复数（coins）时也要触发同现检查，
+            # 否则「中文列丢了目标词」的行会整行不被检查却打印『同现均合规』
+            _pat = r'(?<![A-Za-z])' + re.escape(w.lower()) + r'(?:s|es)?(?![A-Za-z])'
             if re.search(_pat, en_low) and not is_cover:
                 if not re.search(_pat, cn.lower()):
                     issues.append(f"[{page}] 英文列含目标词'{w}'但中文列未出现——目标词双语同现缺失(领读核心机制)")

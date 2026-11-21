@@ -63,6 +63,12 @@ def norm(token):
     return token.replace('-', '').replace('–', '')
 
 
+def _word_forms(word):
+    """核心词的可接受词形：原形 + 复数 s/es（2026-11-21：原先只认原形，复数行整行不查）。"""
+    w = word.lower()
+    return {w, w + 's', w + 'es'}
+
+
 def expected_forms(word, narration, page_no, is_cover):
     """从当页旁白行提取目标词的文稿形态集合(原文形态 + 连字符归一形态)。
 
@@ -75,7 +81,7 @@ def expected_forms(word, narration, page_no, is_cover):
     forms = set()
     for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', seg):
         tok = m.group(0)
-        if norm(tok).lower() == word.lower():
+        if norm(tok).lower() in _word_forms(word):
             forms.add(norm(tok))
     return forms
 
@@ -86,9 +92,9 @@ def scan_prompt_variants(word, prompt):
     wl = len(word)
     for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', prompt):
         tok = m.group(0)
-        if len(norm(tok)) != wl:
-            continue  # 碎片/更长复合词豁免
-        if norm(tok).lower() == word.lower():
+        if norm(tok).lower() not in _word_forms(word):
+            continue  # 碎片/更长复合词/其它词豁免（含单复数）
+        if True:
             variants[tok] = variants.get(tok, 0) + 1
     return variants
 
