@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Notion 绘本资产图库 CLI —— picturebook-creator「参考图资产」定位与联动。
 
-零依赖（只用标准库 urllib）。角色/场景/物件参考图统一存 Notion「绘本资产图库」，
+零依赖（只用标准库 urllib）。角色 / 风格参考图统一存 Notion「绘本资产图库」，
 L1 定型时从库里定位资产，L4 交付时告诉生图的人去哪拿图，L5 归档时把资产行
 relation 到台账排产行。
 
@@ -154,7 +154,7 @@ def main() -> int:
 
     ap = argparse.ArgumentParser(description="绘本资产图库：定位参考图 / 下载 / 关联台账")
     ap.add_argument("--list", action="store_true", help="列出资产（可配 --type 筛选）")
-    ap.add_argument("--type", default="", help="按「资产类型」筛选（角色/场景/物件…）")
+    ap.add_argument("--type", default="", help="按「资产类型」筛选（角色 / 风格参考）")
     ap.add_argument("--name", default="", help="按「资产名称」精确定位一条资产")
     ap.add_argument("--download", default="", help="把该资产的图下载到本地路径（配 --name）")
     ap.add_argument("--link-word", default="", help="把该资产 relation 到此核心词的台账行（配 --name）")
