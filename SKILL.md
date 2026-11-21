@@ -71,7 +71,7 @@ version: 14.0.0
 
 | # | 命令 | 通过标准 |
 |---|---|---|
-| 1 | `python tools/grammar_check.py <旁白表> --word <核心词>` | EXIT=0：大小写 / 目标词双语同现全过（**标点不对应只提示、不阻断**，见 `gates.md`） |
+| 1 | `python tools/grammar_check.py <旁白表> --word <核心词>` | EXIT=0：大小写 / 目标词双语同现全过（**标点不对应只提示、不阻断**）。词形按 `tools/wordforms.py` 生成，生僻词用重复 `--word` 补词形——见 `gates.md` |
 | 2 | `python tools/l4_case_check.py <L4文件> --word <核心词>` | EXIT=0：画面词形态与当页文稿一致 + 旁白行双语 |
 | 3 | `python scripts/l4_presence_check.py <L4文件> --word <核心词> --expect-pages <页数>` | EXIT=0：每页场景段都出现目标词字面 |
 
