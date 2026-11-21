@@ -11,7 +11,7 @@
   B. 统计存量：`python3 tools/title_intro_check.py --corpus <corpus.json>`
      （corpus 来自 tools 外部语料管线：29 本，含 title_lines / intro_lines）
 
-退出码：0=全过  1=有违规  2=输入/参数错误
+退出码：0=全过  1=有违规  2=输入/参数错误（含标题 0 条且简介 0 条，等于没校验）
 注意：本脚本是**写稿自检**，不是交付门禁；简介语义（地基是否落在核心义项）无法机检。
 """
 import argparse
@@ -115,6 +115,10 @@ def main():
             print("  ⚠ 没解析到标题（应为 `| 1 | 中文 | 英文 | …` 表格行）")
         if ni == 0:
             print("  ⚠ 没解析到简介（应为「## 二、简介」下的 `>` 引用行）")
+        if nt == 0 and ni == 0:
+            print("\n没解析到标题/简介，检查格式：标题应为 `| 1 | 中文 | 英文 | …` 表格行，"
+                  "简介应为「## 二、简介」下的 `>` 引用行——此时没有任何校验，不能报通过")
+            return 2
         allx = ti + ii
         if allx:
             print("\n[必须修复] %d 处" % len(allx))

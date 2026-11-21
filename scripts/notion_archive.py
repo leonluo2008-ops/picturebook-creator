@@ -497,12 +497,12 @@ def main() -> int:
     ap.add_argument("--word", required=True, help="核心词，用于在台账『核心词』列精确匹配")
     ap.add_argument("--title", default="", help="英文标题（选定标题段第一行）")
     ap.add_argument("--title-cn", default="", dest="title_cn",
-                    help="中文标题（选定标题段第二行；生图只提取中文标题，但台账必须中英都留档）")
+                    help="中文标题（选定标题段第二行；生图只提取**英文**标题做封面主文字，中文标题只留台账档案）")
     ap.add_argument("--brief", default="", help="选定简介（写入正文一段）")
     ap.add_argument("--narration", help="旁白 md/json 文件")
     ap.add_argument("--l4", help="L4 生图提示词纯文本文件")
     ap.add_argument("--asset", action="append", default=[], metavar="资产名",
-                    help="在 L4 代码块后追加资产页提及块（可多次；提示词文本保持纯净，链接独立成块——用户拍板）")
+                    help="在「L4 生图提示词」标题下、代码块**之前**追加资产页提及块（可多次；提示词文本保持纯净，链接独立成块——用户拍板）")
     ap.add_argument("--date", default=None, help="归档日期 YYYY-MM-DD，默认今天")
     ap.add_argument("--page-id", default=None, help="直接指定台账 row 的 page_id（跳过查行）")
     ap.add_argument("--attr-title", action="store_true", help="属性回填『选定标题』")

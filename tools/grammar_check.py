@@ -11,6 +11,7 @@
 
 用法: python3 grammar_check.py <旁白表.txt> --word floor [--word door]
 输入格式: | 页码 | 英文 | 中文 |
+退出码: 0=全过  1=有违规或读不到文件  2=参数错误 / 解析到 0 行旁白
 """
 import sys
 import re
@@ -133,6 +134,10 @@ def main():
 
     rows = parse(text)
     print(f"解析 {len(rows)} 行旁白, 核对目标词 {args.word}")
+    if not rows:
+        print("没解析到任何旁白行（检查是否为 `| 页码 | 英文 | 中文 |` 的 markdown 表格）——"
+              "此时没有任何校验，不能报通过")
+        sys.exit(2)
     issues, warns = check_rows(rows, args.word)
     if issues:
         print("\n[必须修复]")
