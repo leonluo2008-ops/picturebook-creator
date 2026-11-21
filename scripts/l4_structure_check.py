@@ -198,6 +198,52 @@ def main():
         for x in issues:
             print("  ✗ " + x)
         return 1
+
+    # ── 全书级硬约束（v2.1 补：审计列出「SKILL 有、脚本没查」中可机检的三条）──
+    inner = len(pages) - (0 if args.no_cover else 1)
+    book_issues, book_notes = [], []
+    if not 8 <= inner <= 16:
+        book_issues.append("内页数 %d 不在 8–16 页区间（SKILL「内页 8-16 页」）" % inner)
+
+    word_total = 0
+    wpat = re.compile(r"(?<![A-Za-z])" + re.escape(args.word) + r"(?:s|es)?(?![A-Za-z])", re.I)
+    for i, p in enumerate(pages):
+        en = english_for_count(p.get("narration"), i == 0)
+        word_total += len(wpat.findall(en))
+    if word_total < 8:
+        book_issues.append("目标词全书只出现 %d 次（按原形+复数计），SKILL 要求 ≥8 次" % word_total)
+
+    cn_lens, cn_missing = [], 0
+    for i, p in enumerate(pages):
+        if i == 0 and not args.no_cover:
+            continue
+        nar = (p.get("narration") or "").strip()
+        if "/" not in nar:
+            cn_missing += 1
+            continue
+        cn = nar.split("/", 1)[1]
+        cn = re.sub(r"[，。！？、；：「」（）\"'…\s]", "", cn)
+        n = len(re.findall(r"[\u4e00-\u9fff]", cn))
+        cn_lens.append(n)
+        if n > 30:
+            book_issues.append("[P%d] 中文旁白 %d 字，超过 30 字硬上限" % (i, n))
+        elif not 8 <= n <= 14:
+            book_notes.append("[P%d] 中文旁白 %d 字，超出建议区间 8–14（软提示）" % (i, n))
+
+    print("\n-- 全书级约束 --")
+    print("  内页数 %d（要求 8–16）；目标词全书 %d 次（原形+复数，要求 ≥8）" % (inner, word_total))
+    if cn_lens:
+        print("  中文内页字数 %d–%d（硬上限 30）" % (min(cn_lens), max(cn_lens)))
+    if cn_missing:
+        print("  · 有 %d 页 L4 旁白行不含中文列（纯英文形态）——中文句长请到旁白表上核，本脚本不判" % cn_missing)
+    for n in book_notes:
+        print("  · " + n)
+    if book_issues:
+        print("\n[必须修复] %d 处（全书级）" % len(book_issues))
+        for x in book_issues:
+            print("  ✗ " + x)
+        return 1
+
     print("\n结构门禁全过（自检口径，严格于交付门禁）")
     return 0
 
