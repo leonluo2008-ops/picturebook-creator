@@ -80,7 +80,7 @@ def check_intro(text, word):
         x = x.strip()
         # 2026-11-21：原先「不含目标词就 continue」会把 0 次的简介整条丢掉，
         # 导致 gates.md 声明的「目标词恰 1 次」对 0 次永不生效（假绿）。改为全部纳入判据。
-        if re.search(r"[！!]\s*$", x) or x.endswith("。"):
+        if re.search(r"[！!？?]\s*$", x) or x.endswith("。"):
             intros.append(x)
     for k, x in enumerate(intros):
         tag = "简介%s" % "ABC"[k] if k < 3 else "简介#%d" % (k + 1)
@@ -125,7 +125,7 @@ def main():
             print("  ⚠ 没解析到标题（应为 `| 1 | 中文 | 英文 | …` 表格行）")
         if ni == 0:
             print("  ⚠ 没解析到简介（应为「## 二、简介」下的 `>` 引用行）")
-        if nt == 0 and ni == 0:
+        if nt == 0 or ni == 0:  # 单边为 0 也属格式问题：此时那一半没有任何校验
             print("\n没解析到标题/简介，检查格式：标题应为 `| 1 | 中文 | 英文 | …` 表格行，"
                   "简介应为「## 二、简介」下的 `>` 引用行——此时没有任何校验，不能报通过")
             return 2
