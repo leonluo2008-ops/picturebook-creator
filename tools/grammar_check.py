@@ -16,6 +16,15 @@
 import sys
 import re
 import argparse
+# ── 词形口径：与其它门禁共用 tools/wordforms.py（2026-11-21）──
+import os as _os, sys as _sys
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+for _p in (_HERE, _os.path.join(_HERE, '..', 'tools')):
+    if _os.path.isfile(_os.path.join(_p, 'wordforms.py')):
+        _sys.path.insert(0, _os.path.abspath(_p))
+        break
+from wordforms import word_forms, forms_pattern, upper_forms
+
 
 FAMILY_PAGE = 'P7'  # 词族拓展页在旁白表里的页号；内页数变化时用 --family-page 覆盖
 
@@ -32,12 +41,12 @@ def en_display_form(en_cell, word, is_cover=False):
     就是中文列该跟随的形态——书名写 A Soft Towel, 中文列就写 Towel。
     """
     stripped = en_cell.strip().strip('"“”\'').rstrip('.!?。！？').strip()
-    if re.fullmatch(r'[A-Za-z][A-Za-z\-]*', stripped) and norm(stripped).lower() == word.lower():
+    if re.fullmatch(r'[A-Za-z][A-Za-z\-]*', stripped) and norm(stripped).lower() in word_forms(word):
         return stripped
     if is_cover:
         for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', en_cell):
             tok = m.group(0)
-            if norm(tok).lower() == word.lower():
+            if norm(tok).lower() in word_forms(word):
                 return tok
     return None
 
@@ -75,10 +84,12 @@ def check_rows(rows, words):
             for tok in cn_tokens:
                 if '-' in tok:
                     continue  # 拆解段(R-A-B-B-I-T/Rab-bit)镜像英文列教学设计, 不按夹用词检查
-                if len(norm(tok)) == len(w) and norm(tok).lower() == w.lower():
-                    if norm(tok) != norm(expected):
+                if norm(tok).lower() in word_forms(w):
+                    # 只判「大小写」：有英文展示行就跟随其形态；没有则要求全小写（词形可以是任意屈折形）
+                    want = norm(display) if display else norm(tok).lower()
+                    if norm(tok) != want:
                         kind = 'Title Case' if tok == tok.capitalize() else ('全大写' if tok.isupper() else '混合形态')
-                        issues.append(f"[{page}] 中文列'{tok}'({kind})应为'{expected}'({reason})")
+                        issues.append(f"[{page}] 中文列'{tok}'({kind})应为'{want}'({reason})")
 
         # --- 目标词双语同现检查(硬闸) ---
         # 英文列含目标词的行, 中文列必须同现目标词——词义双关是领读绘本的核心机制,
@@ -88,7 +99,7 @@ def check_rows(rows, words):
             # 2026-11-21: CJK 在 Python re 里属 \w，`\bpot\b` 在「小锅pot坐」这种紧贴汉字处失效
             # 2026-11-21 修：英文按语法写复数（coins）时也要触发同现检查，
             # 否则「中文列丢了目标词」的行会整行不被检查却打印『同现均合规』
-            _pat = r'(?<![A-Za-z])' + re.escape(w.lower()) + r'(?:s|es)?(?![A-Za-z])'
+            _pat = forms_pattern(w)
             if re.search(_pat, en_low) and not is_cover:
                 if not re.search(_pat, cn.lower()):
                     issues.append(f"[{page}] 英文列含目标词'{w}'但中文列未出现——目标词双语同现缺失(领读核心机制)")

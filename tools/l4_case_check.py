@@ -25,6 +25,15 @@
 import sys
 import re
 import argparse
+# ── 词形口径：与其它门禁共用 tools/wordforms.py（2026-11-21）──
+import os as _os, sys as _sys
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+for _p in (_HERE, _os.path.join(_HERE, '..', 'tools')):
+    if _os.path.isfile(_os.path.join(_p, 'wordforms.py')):
+        _sys.path.insert(0, _os.path.abspath(_p))
+        break
+from wordforms import word_forms, forms_pattern, upper_forms
+
 
 
 def parse_pages(text):
@@ -64,9 +73,8 @@ def norm(token):
 
 
 def _word_forms(word):
-    """核心词的可接受词形：原形 + 复数 s/es（2026-11-21：原先只认原形，复数行整行不查）。"""
-    w = word.lower()
-    return {w, w + 's', w + 'es'}
+    """核心词的可接受词形——统一走 tools/wordforms.py（原形/s/es/ies/ves/不规则/同形）。"""
+    return word_forms(word)
 
 
 def expected_forms(word, narration, page_no, is_cover):
@@ -109,7 +117,7 @@ def check_page(page, page_no, words):
             n = norm(tok)
             if n in exp:
                 continue  # 与文稿形态一致
-            if n == word.lower() and not is_cover:
+            if n.lower() in _word_forms(word) and not is_cover:
                 continue  # 全小写=词典词头形态, 非封面页放行
             kind = '全大写' if n == word.upper() else ('Title Case' if n == word.capitalize() else '混合形态')
             issues.append(
@@ -159,7 +167,7 @@ def check_header(header, words):
     for word, _ in words:
         for m in re.finditer(r'[A-Za-z][A-Za-z\-]*', header):
             tok = m.group(0)
-            if len(norm(tok)) == len(word) and norm(tok) == word.upper():
+            if norm(tok) in upper_forms(word):
                 ctx = header[max(0, m.start() - 15):m.end() + 10].replace('\n', ' ')
                 issues.append(f"[引导语/约定区] 全大写'{tok}'——目标词在引导语里也须按约定形态(小写)书写: …{ctx}…")
     return issues

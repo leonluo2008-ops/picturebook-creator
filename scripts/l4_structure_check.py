@@ -29,6 +29,16 @@ v2.0 相对 v1.0 的修改（依据 2026-11-21 双路行为审计）：
 退出码: 0=过  1=有违规  2=输入/参数错误
 """
 import argparse
+
+# ── 词形口径：与其它门禁共用 tools/wordforms.py（2026-11-21）──
+import os as _os, sys as _sys
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+for _p in (_HERE, _os.path.join(_HERE, '..', 'tools')):
+    if _os.path.isfile(_os.path.join(_p, 'wordforms.py')):
+        _sys.path.insert(0, _os.path.abspath(_p))
+        break
+from wordforms import word_forms, forms_pattern, upper_forms
+
 import re
 import sys
 
@@ -233,7 +243,7 @@ def main():
         book_issues.append("内页数 %d 不在 8–16 页区间（SKILL「内页 8-16 页」）" % inner)
 
     word_total = 0
-    wpat = re.compile(r"(?<![A-Za-z])" + re.escape(args.word) + r"(?:s|es)?(?![A-Za-z])", re.I)
+    wpat = re.compile(forms_pattern(args.word), re.I)
     for i, p in enumerate(pages):
         en = english_for_count(p.get("narration"), i == 0)
         word_total += len(wpat.findall(en))

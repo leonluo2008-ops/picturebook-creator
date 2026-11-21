@@ -20,6 +20,16 @@ v2.0 相对 v1.0 的修改（依据 2026-11-21 双路行为审计）：
 退出码: 0=每页都在  1=有页缺失  2=输入/参数错误
 """
 import argparse
+
+# ── 词形口径：与其它门禁共用 tools/wordforms.py（2026-11-21）──
+import os as _os, sys as _sys
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+for _p in (_HERE, _os.path.join(_HERE, '..', 'tools')):
+    if _os.path.isfile(_os.path.join(_p, 'wordforms.py')):
+        _sys.path.insert(0, _os.path.abspath(_p))
+        break
+from wordforms import word_forms, forms_pattern, upper_forms
+
 import re
 import sys
 
@@ -66,8 +76,7 @@ def scene_segment(prompt):
 
 def contains_word(haystack: str, word: str) -> bool:
     """加词界的大小写不敏感匹配；word 含连字符/撇号时按字面。"""
-    return re.search(r"(?<![A-Za-z])" + re.escape(word) + r"(?![A-Za-z])",
-                     haystack, flags=re.I) is not None
+    return re.search(forms_pattern(word), haystack, flags=re.I) is not None
 
 
 def main():
