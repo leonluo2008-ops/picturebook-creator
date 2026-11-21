@@ -135,6 +135,8 @@ def main():
         safety = {"80%": "80%" in pr, "10%": "10%" in pr, "背景铺边": bool(BG_EDGE.search(pr))}
         is_family = "词族拓展页" in ptype
         if is_family:
+            if family_words and len(family_words) < 2:
+                issues.append("[%s] 传了 %d 个词族词——词族页至少要 2 个同族词，否则名不副实（存量 B261 cloud 只有 1 个词）" % (no, len(family_words)))
             if family_words:
                 miss = [w for w in family_words if not re.search(
                     r"(?<![A-Za-z])" + re.escape(w) + r"(?![A-Za-z])", pr, flags=re.I)]
