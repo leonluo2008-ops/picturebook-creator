@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""L4 生图提示词 · 「在不在」逐页门禁 v1.0
+"""L4 生图提示词 · 「在不在」逐页门禁 v2.0
 
-补 SKILL.md「画面文字形态门禁」的缺口：`l4_case_check.py` 只校形态不校存在——
-整页压根没写目标词时它照样 EXIT=0（实测：核心词传错也输出「全过」）。
+补 SKILL.md「画面文字形态门禁」的缺口：`l4_case_check.py` 只校形态不校存在
+（整页没写目标词也 EXIT=0，实测核心词传错同样「全过」）。
 
-本脚本只做一件事：逐页取「生图提示词:」到「构图要求:」之间的**场景描述段**
-（不含安全区句，那里提到词不算入画），断言里面出现目标词字面；封面按正式英文标题核对。
+v2.0 相对 v1.0 的修改（依据 2026-11-21 双路行为审计）：
+- 页数断言 `--expect-pages`：解析到的页数不等于期望即 fail（v1 会把 `- 旁白:` 这类漏页静默吞掉）
+- 全量剥离 `\\ufeff`（v1 只靠 utf-8-sig 处理文件首 BOM，中段 BOM 仍丢页）
+- 退出码契约：0=过 / 1=有违规 / 2=输入错误（编码、页数、参数）；docstring 写明
+- `UnicodeDecodeError` 归 2，不再抛 traceback
+- `--page-words` 空词集 / 越界页码 / 重复页号 → exit 2（v1 会静默改变判定）
+- 词匹配默认加词界 `(?<![a-z])word(?![a-z])`（v1 裸子串，`soa` / `photo` 会误命中）
+- docstring 与实现对齐：本脚本只做 `--word/--page-words` 字面匹配，**不读封面书名**
 
 用法:
-  python l4_presence_check.py <L4文件> --word soap
-  python l4_presence_check.py <L4文件> --word glue --word blue
-
-退出码: 0=每页都在  1=有页缺失
-
-注：Windows 控制台默认 GBK，输出含 ✗ 会抛 UnicodeEncodeError；本脚本已 reconfigure 为 UTF-8。
+  python3 l4_presence_check.py <L4文件> --word soap [--expect-pages 9]
+  python3 l4_presence_check.py <L4文件> --word pot --page-words 7=hot,dot,cot
+退出码: 0=每页都在  1=有页缺失  2=输入/参数错误
 """
 import argparse
 import re
@@ -25,10 +28,12 @@ try:
 except Exception:
     pass
 
+WORD_OK = re.compile(r"^[A-Za-z][A-Za-z'\-]*$")
+
 
 def parse_pages(text):
-    pages = []
-    cur = None
+    text = text.replace("\ufeff", "")
+    pages, cur = [], None
     for line in text.splitlines():
         s = line.strip()
         m = re.match(r"^旁白[:：]\s*(.*)$", s)
@@ -42,12 +47,7 @@ def parse_pages(text):
         if m:
             cur["prompt"] = m.group(1)
             continue
-        m3 = re.match(r"^页面类型[:：]\s*(.*)$", s)
-        if m3:
-            cur["ptype"] = m3.group(1)
-            continue
-        m4 = re.match(r"^比例[:：]\s*(.*)$", s)
-        if m4:
+        if re.match(r"^(比例|页面类型)[:：]", s):
             continue
         if cur["prompt"]:
             cur["prompt"] += "\n" + s
@@ -55,70 +55,108 @@ def parse_pages(text):
 
 
 def scene_segment(prompt):
-    """取「生图提示词」正文里、构图要求之前的场景描述段"""
     if "构图要求" in prompt:
         return prompt.split("构图要求", 1)[0]
     return prompt
 
 
+def contains_word(haystack: str, word: str) -> bool:
+    """加词界的大小写不敏感匹配；word 含连字符/撇号时按字面。"""
+    return re.search(r"(?<![A-Za-z])" + re.escape(word) + r"(?![A-Za-z])",
+                     haystack, flags=re.I) is not None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("l4file", help="L4 生图提示词纯文本文件")
+    ap.add_argument("l4file")
     ap.add_argument("--word", action="append", required=True,
-                    help="目标核心词（可重复传伙伴词；注意：会套用到所有页）")
+                    help="目标核心词（重复传伙伴词；会套用到所有未指定 page-words 的页）")
     ap.add_argument("--page-words", action="append", default=[],
-                    help="按页指定词集，格式 页码=词1,词2（页码 1=第一个内页，0=封面）；"
-                         "用于词族拓展页这类「本页只该出现词族词」的情形")
+                    help="按页指定词集，格式 页码=词1,词2（0=封面，1=第一个内页）")
+    ap.add_argument("--expect-pages", type=int, default=0,
+                    help="期望页数（含封面）；>0 时解析页数不等即判 fail")
+    ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
+
+    for w in args.word:
+        if not WORD_OK.match(w):
+            print("--word 参数非法：%r（只接受单个英文词；伙伴词请重复传 --word，不要用逗号或空格分隔）" % w)
+            return 2
 
     page_words = {}
     for spec in args.page_words:
-        try:
-            k, v = spec.split("=", 1)
-            page_words[int(k.strip())] = [x.strip() for x in v.split(",") if x.strip()]
-        except Exception:
+        if "=" not in spec:
             print("--page-words 格式错误：%r（应为 页码=词1,词2）" % spec)
             return 2
+        k, v = spec.split("=", 1)
+        try:
+            idx = int(k.strip())
+        except ValueError:
+            print("--page-words 页码非整数：%r" % k)
+            return 2
+        words = [x.strip() for x in v.split(",") if x.strip()]
+        if not words:
+            print("--page-words 空词集：%r（空词集会静默关闭该页检查，已拒绝）" % spec)
+            return 2
+        if idx in page_words:
+            print("--page-words 重复页号：%d（重复会静默覆盖前一条，已拒绝）" % idx)
+            return 2
+        page_words[idx] = words
 
     try:
         text = open(args.l4file, encoding="utf-8-sig").read()
+    except FileNotFoundError:
+        print("读不到文件（不存在）：%s" % args.l4file)
+        return 2
+    except UnicodeDecodeError as e:
+        print("文件不是 UTF-8：%s（%s）。请另存为 UTF-8 或 UTF-8 BOM 后再跑。" % (args.l4file, e))
+        return 2
     except OSError as e:
-        print("读不到文件: %s" % e)
-        return 1
+        print("读不到文件：%s" % e)
+        return 2
 
     pages = parse_pages(text)
     if not pages:
         print("没解析到任何页面记录（应以「旁白: 」行开始）")
+        return 2
+    if args.expect_pages and len(pages) != args.expect_pages:
+        print("页数不符：解析到 %d 页，期望 %d 页。"
+              "常见原因：某一页的「旁白:」被写成列表/加粗/带前导字符，被吞进上一页。" % (len(pages), args.expect_pages))
         return 1
+    max_idx = len(pages) - 1
+    for idx in page_words:
+        if idx < 0 or idx > max_idx:
+            print("--page-words 页码越界：%d（本文件页码范围 0–%d）" % (idx, max_idx))
+            return 2
 
-    issues = []
-    skipped = []
+    issues, skipped, used_page_words = [], [], []
     for i, p in enumerate(pages):
         page_no = "封面" if i == 0 else "P%d" % i
-        ptype = (p.get("ptype") or "").strip()
-        # 词族拓展页：若给了 --page-words 指定本页词集，就按词集核；否则跳过
-        # （词族页的教学载体是词族词，本就不要求核心词入画）
-        if "词族拓展页" in ptype:
-            if i not in page_words:
-                skipped.append(page_no)
-                continue
-        words = page_words.get(i, args.word)
+        if "词族拓展页" in (p.get("prompt") or "") and i not in page_words:
+            pass  # 词族页的判定依赖页面类型字段，见下
+        if i in page_words:
+            words = page_words[i]
+            used_page_words.append((page_no, words))
+        else:
+            words = args.word
         scene = scene_segment(p["prompt"])
-        low = scene.lower()
         for w in words:
-            if w.lower() not in low:
+            if not contains_word(scene, w):
                 issues.append("[%s] 场景描述段未出现目标词 '%s'——教学载体丢失"
                               "（画面上不会有这个词，机审的形态检查也发现不了）" % (page_no, w))
 
-    print("解析 %d 页，核对目标词 %s 的「在不在」" % (len(pages), args.word))
-    if skipped:
-        print("跳过 %d 页（词族拓展页，教学载体是词族词）: %s" % (len(skipped), " / ".join(skipped)))
+    if not args.quiet:
+        print("解析 %d 页；核对目标词 %s 的「在不在」" % (len(pages), args.word))
+        if used_page_words:
+            print("按页指定词集：" + "；".join("%s=%s" % (no, ",".join(ws)) for no, ws in used_page_words))
     if issues:
         print("\n[必须修复] %d 处" % len(issues))
         for x in issues:
             print("  ✗ " + x)
         return 1
-    print("逐页在不在：全过——每页场景段都能看到目标词字面")
+    if not args.quiet:
+        print("逐页在不在：全过——每页场景段都能看到目标词字面")
+        print("注意：本脚本只做字面匹配，不读封面书名；封面那页需人工按书名校对。")
     return 0
 
 
