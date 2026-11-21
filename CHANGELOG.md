@@ -1,3 +1,14 @@
+## v14.0.0 — 2026-11-21 · 清仓重建（只有领读模式）
+
+> 这不是迭代，是重建：1922 行 → 142 行，结构与内容都换掉。旧版保留在 git 历史（`090d1bb` 及更早）。
+
+- **只保留领读模式**：故事模式整体删除（模式A、步骤1–6、双模式总览、模式识别、BGM、路径A/B），证据口径随之收窄为 **27 本领读**。
+- **按 DSH skill 插件标准重建**：`SKILL.md` = frontmatter（name/description/version）+ 五节骨架（什么时候用 / 怎么做 / 判据 / 反模式 / 参考）；细则拆进 `references/`（flow / rules / l4-spec / gates / notion-ops / cover-design / style-library / standard-delivery / cloud-start，共 9 件）按需加载。
+- **去重与去噪**：同名标题组 7 → 0；历史与过程内容（旧档/存量/实测/日期流水）→ 0；76 条反例收敛为 18 条反模式。
+- **每条规则标依据**：〔证据〕/〔裁定〕/〔假设〕三档；假设集中在 `references/rules.md` §10，不进主规则。
+- **落位**：`~/.dsh/skills/picturebook-creator` 为 junction 指向本仓，DSH 可直接加载（`skill-canon`：缺 frontmatter 0 / DRIFT 0）。
+- 映射表：`docs/W3-重构映射表.md`（旧 24 个 H2 块：删 11 / 改 5 / 合 8）。
+
 ## （未打 tag）13.1.0 之后 · 三条裁定落成机检 + 门禁缺陷修复 — 2026-11-21
 
 > 依据：V10 双路审计（重活 `deepseek-v4.1-flash:1017` / 轻活 `gpt-6.1-sol`）并集 6 条 P0 + 9 条 IMPL。
