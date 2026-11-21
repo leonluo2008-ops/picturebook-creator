@@ -62,8 +62,11 @@ def main():
     ap.add_argument("l4file")
     ap.add_argument("--word", required=True)
     ap.add_argument("--max-words", type=int, default=10)
+    ap.add_argument("--family-words", default="",
+                    help="词族拓展页应出现的词族词（逗号分隔，如 hot,dot,cot）；给了就断言本页都出现")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
+    args.family_words = [w.strip() for w in args.family_words.split(",") if w.strip()]
 
     try:
         text = open(args.l4file, encoding="utf-8").read()
@@ -89,7 +92,12 @@ def main():
         seg = pr.split("构图要求", 1)[1] if has_comp else ""
         safety_miss = [b for b in SAFETY if b not in seg]
         is_family = "词族拓展页" in ptype
-        has_word_block = ("目标词图形化" in pr) or (args.word.lower() in pr.lower()) or is_family
+        # 词族拓展页豁免的是「核心词字面入画」，不豁免「目标词图形化」块本身；
+        # 若给了 --family-words，则本页必须出现这些词族词。
+        fam_ok = True
+        if is_family and args.family_words:
+            fam_ok = all(w.lower() in pr.lower() for w in args.family_words)
+        has_word_block = (("目标词图形化" in pr) or (args.word.lower() in pr.lower())) and fam_ok
 
         rows.append((no, ratio, ptype, words, has_role, has_scene, has_comp, not safety_miss))
 

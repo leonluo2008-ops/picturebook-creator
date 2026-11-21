@@ -65,8 +65,20 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("l4file", help="L4 生图提示词纯文本文件")
     ap.add_argument("--word", action="append", required=True,
-                    help="目标核心词（可重复传伙伴词）")
+                    help="目标核心词（可重复传伙伴词；注意：会套用到所有页）")
+    ap.add_argument("--page-words", action="append", default=[],
+                    help="按页指定词集，格式 页码=词1,词2（页码 1=第一个内页，0=封面）；"
+                         "用于词族拓展页这类「本页只该出现词族词」的情形")
     args = ap.parse_args()
+
+    page_words = {}
+    for spec in args.page_words:
+        try:
+            k, v = spec.split("=", 1)
+            page_words[int(k.strip())] = [x.strip() for x in v.split(",") if x.strip()]
+        except Exception:
+            print("--page-words 格式错误：%r（应为 页码=词1,词2）" % spec)
+            return 2
 
     try:
         text = open(args.l4file, encoding="utf-8").read()
@@ -84,13 +96,16 @@ def main():
     for i, p in enumerate(pages):
         page_no = "封面" if i == 0 else "P%d" % i
         ptype = (p.get("ptype") or "").strip()
-        # 词族拓展页的教学载体是词族词（ball/tall/wall），本就不要求核心词入画
+        # 词族拓展页：若给了 --page-words 指定本页词集，就按词集核；否则跳过
+        # （词族页的教学载体是词族词，本就不要求核心词入画）
         if "词族拓展页" in ptype:
-            skipped.append(page_no)
-            continue
+            if i not in page_words:
+                skipped.append(page_no)
+                continue
+        words = page_words.get(i, args.word)
         scene = scene_segment(p["prompt"])
         low = scene.lower()
-        for w in args.word:
+        for w in words:
             if w.lower() not in low:
                 issues.append("[%s] 场景描述段未出现目标词 '%s'——教学载体丢失"
                               "（画面上不会有这个词，机审的形态检查也发现不了）" % (page_no, w))
