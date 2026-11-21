@@ -3,7 +3,7 @@
 ## 环境配置
 
 - GitHub 仓库：leonluo2008-ops/picturebook-creator。
-- 分支：**`refactor/v13-20261121`**（v13 大版本重构，目标版本 `13.0.0`）。旧分支 `codex/picturebook-adaptation` 是 v11 基线；现有云环境若仍为 `PC1024-3` 或旧 codex 分支，**需切换并重新发布**。
+- 分支：**`dev`**（当前开发；`main` 为稳定线，当前版本 `13.1.0`）。旧分支 `codex/picturebook-adaptation` 已冻结；现有云环境若仍为 `PC1024-3` 或旧 codex 分支，**需切换并重新发布**。
 - 运行时：Python 3.10+。创作检查与 Notion 脚本仅需标准库。
 - 凭据：在云环境的密钥管理中配置 NOTION_API_KEY；不写入仓库、聊天或安装脚本。允许访问 api.notion.com；下载资产时按真实来源追加必要域名。
 - 启动检查：`python tools/cloud_check.py`；只读联通检查：`python tools/cloud_check.py --notion-word soap`。
