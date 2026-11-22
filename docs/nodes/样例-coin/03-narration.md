@@ -1,6 +1,6 @@
 | 页码 | 英文 | 中文 |
 |---|---|---|
-| 封面 | One Little Coin | 一枚小硬币，Coin |
+| 封面 | Coin | 硬币，Coin |
 | P1 | This coin is money. | 这枚小硬币是钱，coin。 |
 | P2 | I put the coin in the piggy bank. | 我把硬币投进小猪罐，coin。 |
 | P3 | I save one coin a day. | 一天存一枚硬币，coin。 |

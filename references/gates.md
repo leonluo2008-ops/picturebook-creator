@@ -1,6 +1,6 @@
 # 门禁与自检（命令 / 参数 / 退出码）
 
-> 三道门禁**缺一不过**；另两道是自检工具（比门禁严，不进缺一不过，是否升级由所有者决定）。
+> L4 三道门禁**缺一不过**；**标题判据是 L3 出口门禁**（2026-11-22 所有者裁定升格：EXIT=0 才端给所有者）；结构自检仍是自检，不进缺一不过。
 > 所有命令在仓库根目录执行；Windows 控制台先 `$env:PYTHONUTF8=1`（见 §5）。
 
 ## §1 一览
@@ -11,7 +11,7 @@
 | 2 | `tools/l4_case_check.py` | L4 画面词形态 + 旁白行双语 | 0 过 / 1 违规（**读不到文件、解析到 0 页也是 1**）/ 2 仅 argparse 参数错 |
 | 3 | `scripts/l4_presence_check.py` | L4：逐页**在不在**（场景段是否出现目标词） | 0 过 / 1 漏页 / 2 参数错（**读不到文件也是 2**）|
 | 自检 A | `scripts/l4_structure_check.py` | L4 结构：块存在性、词数、构图三要素、比例、页型、`Pn` 前缀、内页数、目标词次数、中文句长 | 0 / 1 / 2（读不到文件、第 0 页不是封面 → 2）|
-| 自检 B | `tools/title_intro_check.py` | 标题与简介的可机判项 | 0 / 1 / 2（读不到文件、标题 0 条且简介 0 条 → 2）|
+| **L3 出口** | `tools/title_intro_check.py --gloss <释义> --pos <词型>` | 标题七判据（E1–E5 + G1/G2/P1）+ 简介可机判项 | 0 / 1 / 2（读不到文件、标题或简介任一侧 0 条 → 2）|
 
 ## §2 三道门禁
 
@@ -76,15 +76,15 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 - **伙伴词只能重复写 `--word`**：写成空格分隔报 `unrecognized arguments`。写成逗号串 `--word glue,blue` 的结果**按工具分**：`grammar_check` / `l4_case_check` 把它当成一个词、**照样 EXIT=0**（机审扫不到任何东西，零校验）；`l4_presence_check` 有 `WORD_OK` 单词语法校验，直接 **exit 2**；`l4_structure_check` 也把它当一个词，会按「目标词全书」大面积判红（**exit 1**），别拿它当参数验证。
 - 退出码契约：`0` 过、`1` 有违规、`2` 输入或参数错误。**按工具分**：`grammar_check` / `l4_case_check` 读不到文件返回 **1**；它们自身产生 2 只有两种情况——argparse 参数错误，或 `grammar_check` 解析到 0 行旁白（见 §2）；`l4_presence_check` / `l4_structure_check` / `title_intro_check` 读不到文件返回 **2**。**看到 2 不要当 1 修**，先看参数与文件路径。
 
-## §4 两道自检（严于门禁，不进缺一不过）
+## §4 L3 出口门禁 + 结构自检
 
 ```bash
 python scripts/l4_structure_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--family-words hot,dot,cot]
-python tools/title_intro_check.py --file <标题简介文件.md> --word <核心词>
+python tools/title_intro_check.py --file <标题简介文件.md> --word <核心词> --gloss <台账中文释义> --pos <台账词型>
 ```
 
 - `l4_structure_check.py`：块存在性（「六类 + 构图要求」里可机检的 4 项：目标词图形化 / 角色一致性 / 场景一致性 / 构图要求）/ 每页词数 / 构图三要素 / 比例 / 页面类型 / `Pn` 前缀 / 内页数 / 目标词全书次数 / 中文句长。构图三要素在整段提示词里查，第 3 要素按「背景…(边缘|填充|铺边)」同句判定。**封面页型不是「认知页」→ 记一条 issue、exit 1**；**第 0 页识别不出封面 → exit 2**（此时加 `--no-cover` 跳过封面专属断言）。**它会把按旧口径产出的稿判红，属预期。**
-- `title_intro_check.py`：标题（中英两列含词、无括注、含词后 ≤12 字）与简介（目标词恰 1 次、首句不以场景词开头、无禁词、单句 ≤30 字）。语义地基无法机检。
+- `title_intro_check.py`：标题七条（E1–E5 原有五条 + G1 释义逐字在场 / G2 白名单零干扰 / P1 词型非动作类时禁动词屈折与祈使尾）与简介（目标词恰 1 次、首句不以场景词开头、无禁词、单句 ≤30 字）。**必须传 `--gloss` 才跑 G1/G2，不传会打印「未执行」提示**——此时不能据此说标题合规。语义地基无法机检。
 - 另有 `--corpus <corpus.json>` 模式用于统计存量语料，不是写稿检查。
 
 ## §5 Windows 环境

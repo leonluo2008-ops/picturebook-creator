@@ -1,6 +1,6 @@
 | 页码 | 英文 | 中文 |
 |---|---|---|
-| 封面 | One Little Mug | 一个小杯子，Mug |
+| 封面 | Mug | 杯子，Mug |
 | P1 | This mug is for hot drinks. | 这个杯子用来装热饮，mug。 |
 | P2 | I hold the mug with both hands. | 我用两只手捧着杯子，mug。 |
 | P3 | Warm steam curls up from the mug. | 热气慢慢从杯口冒上来，mug。 |
