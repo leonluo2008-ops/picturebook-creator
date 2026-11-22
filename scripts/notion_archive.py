@@ -244,6 +244,98 @@ def resolve_row(ds_id: str, word: str, allow_create: bool, word_type: str, sched
     return create_row(ds_id, word, word_type, sched_no)
 
 
+# 状态兜底清单（2026-11-22）：Notion data_source API 不回传 select options（实测 200 响应
+# properties.状态.options 为空列表），而 select 写入不存在的值会被 Notion **静默新建选项**。
+# 因此 options 取不到时按此清单校验；清单与 docs/项目适配包.md §3 的状态 9 项同步维护。
+STATUS_FALLBACK = ["已筛查", "备选", "待生图", "已制作", "弃用", "待制作", "修改中", "已生图", "待审查"]
+
+
+def status_options(ds_id: str) -> list:
+    """「状态」select 的合法值：优先 API 真实 options，取不到用 STATUS_FALLBACK。"""
+    ds = api(f"/v1/data_sources/{ds_id}")
+    st = ((ds.get("properties") or {}).get("状态") or {})
+    opts = [o.get("name", "") for o in (st.get("options") or [])]
+    if not opts:
+        print("  · API 未回传状态 options，按 STATUS_FALLBACK 清单校验", file=sys.stderr)
+        opts = STATUS_FALLBACK
+    return opts
+
+
+def set_props(page_id: str, note: str = "", gloss: str = "") -> list:
+    """写「备注」（整段覆盖）与「中文释义」，逐项回读；返回失败项列表。"""
+    props = {}
+    if note:
+        props["备注"] = {"rich_text": rt(note)}
+    if gloss:
+        props["中文释义"] = {"rich_text": rt(gloss)}
+    fails = []
+    if not props:
+        return fails
+    api(f"/v1/pages/{page_id}", "PATCH", {"properties": props})
+    after = api(f"/v1/pages/{page_id}").get("properties") or {}
+    for name, want in (("备注", note), ("中文释义", gloss)):
+        if not want:
+            continue
+        got = rich_text_of({"properties": after}, name)
+        (fails if got != want else []).append(f"『{name}』回读不符：期望『{want}』实际『{got}』") if got != want else None
+        if got != want:
+            print(f"  ✗ 属性回读不符：『{name}』期望『{want}』实际『{got}』", file=sys.stderr)
+    return fails
+
+
+def delete_archive_section(page_id: str, dry_run: bool = False) -> int:
+    """改写模式清场：删「首个 📚 创作产出 heading_2」及其后全部块（归档恒在页尾 append）。
+
+    保护：遇到 child_page / child_database / image / file / embed / video / pdf 等
+    资产类块 → 停手报错（这些可能是资产或附件，删了不可再生）。
+    归档段自带的 table（旁白表）不在此列——Notion 删块递归删 children（表行随之删除）。
+    dry_run=True 只打印将删清单，不删除。
+    """
+    UNSAFE = {"child_page", "child_database", "image", "file", "embed", "video", "pdf",
+              "link_preview", "bookmark", "synced_block"}
+    kids, cursor = [], None
+    while True:
+        q = f"/v1/blocks/{page_id}/children?page_size=100" + (f"&start_cursor={cursor}" if cursor else "")
+        r = api(q)
+        kids.extend(r.get("results") or [])
+        if not r.get("has_more"):
+            break
+        cursor = r.get("next_cursor")
+    start = None
+    for i, b in enumerate(kids):
+        if b.get("type") == "heading_2" and "创作产出" in "".join(
+                x.get("plain_text", "") for x in (b.get("heading_2", {}).get("rich_text") or [])):
+            start = i
+            break
+    if start is None:
+        if dry_run:
+            print("[rewrite dry-run] 页面无『创作产出』段 —— 无需清场")
+        return 0
+    doomed = kids[start:]
+    unsafe = [b for b in doomed if b.get("type") in UNSAFE]
+    if unsafe:
+        for b in unsafe[:10]:
+            print(f"  ✗ 改写中止：待删范围里有不可再生块 type={b.get('type')} id={b.get('id')}", file=sys.stderr)
+        raise SystemExit("✗ --rewrite 的删除范围包含资产/附件/子页类块，已中止（请人工检查该页）")
+    if dry_run:
+        print(f"[rewrite dry-run] 将删 {len(doomed)} 个块（首个创作产出 heading 起至页尾）：")
+        for b in doomed:
+            body = b.get(b.get("type"), {}) or {}
+            first = ""
+            for key in ("rich_text", "text"):
+                arr = body.get(key) or []
+                if arr:
+                    first = arr[0].get("plain_text", "")[:36]
+                    break
+            print(f"    - {b.get('type'):10s} {first}")
+        return len(doomed)
+    n = 0
+    for b in doomed:
+        api(f"/v1/blocks/{b['id']}", "DELETE")
+        n += 1
+    return n
+
+
 def has_archive(page_id: str) -> bool:
     """该行正文是否已经有「创作产出」段落（防重复归档）。"""
     try:
@@ -510,12 +602,69 @@ def main() -> int:
     ap.add_argument("--word-type", default="", help="新建行时写入『词型』（名词/动作动词/形容词…）")
     ap.add_argument("--sched-no", default="", help="新建行时指定排产号，默认自动取 B###+1")
     ap.add_argument("--no-create", action="store_true", help="查不到该核心词时禁止建行（默认会建）")
-    ap.add_argument("--force", action="store_true", help="该行已有创作产出时仍追加一段（默认拦截）")
+    ap.add_argument("--force", action="store_true", help="该行已有创作产出时仍追加一段（默认拦截；--rewrite 与它互斥）")
+    ap.add_argument("--rewrite", action="store_true",
+                    help="改写模式（R15）：清掉旧『创作产出』段→重归档→状态/备注/释义一次完成；需 --narration/--l4")
+    ap.add_argument("--status", default=None, metavar="状态",
+                    help="显式设状态（值必须来自台账状态列真实 options，非法值 EXIT=2）")
+    ap.add_argument("--note", default=None, metavar="文本",
+                    help="整段覆盖『备注』（不追加；空串拒绝 EXIT=2）")
+    ap.add_argument("--gloss", default=None, metavar="释义",
+                    help="写『中文释义』（R13：L1 确认的词典义项，逐字入台账）")
     ap.add_argument("--locate", action="store_true", help="只定位台账行并打印，不写")
     ap.add_argument("--dry-run", action="store_true", help="打印 block 清单，不发写请求")
     args = ap.parse_args()
 
     date = args.date or __import__("datetime").date.today().isoformat()
+
+    # 0) 预检全部前置（审计 B/I3：任何网络写之前先把参数与文件验完）
+    if args.rewrite and args.force:
+        raise SystemExit("✗ --rewrite 与 --force 互斥：--rewrite 是清场重写，--force 是追加")
+    if args.note is not None and not args.note.strip():
+        raise SystemExit("✗ --note 传了空串：备注要么不传（不动），要么给整段覆盖文本")
+    props_only = (args.status or args.note is not None or args.gloss) and not (args.narration and args.l4)
+    narration = parse_narration(args.narration) if args.narration else []
+    l4 = Path(args.l4).read_text(encoding="utf-8") if args.l4 else ""
+    if not props_only and not (args.narration and args.l4) and not args.locate:
+        raise SystemExit("✗ 归档需要 --narration 和 --l4；只改属性请用 --status/--note/--gloss（不要传 --narration/--l4）")
+    if args.status or props_only:
+        opts = status_options(resolve_data_source())
+        if args.status and args.status not in opts:
+            raise SystemExit(f"✗ --status『{args.status}』不在台账状态列 options 里：{' / '.join(opts)}")
+
+    # ── props-only 模式：只动状态/备注/释义，不碰正文 ──
+    if props_only:
+        ds_id = resolve_data_source()
+        rows = query_rows(ds_id, args.word)
+        if len(rows) > 1:
+            nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
+            raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
+        if not rows:
+            raise SystemExit("✗ props-only 模式要求行已存在（不自动建行）")
+        page_id, sched_no = rows[0]["id"], rich_text_of(rows[0], "排产号")
+        print(f"✓ 台账行：{sched_no}  page_id={page_id}")
+        if args.dry_run:
+            plan = []
+            if args.status: plan.append(f"状态 → {args.status}")
+            if args.note is not None: plan.append(f"备注（整段覆盖）→ {args.note}")
+            if args.gloss: plan.append(f"中文释义 → {args.gloss}")
+            print("[dry-run] 计划属性写入：" + "；".join(plan) + "（本次未写入）")
+            return 0
+        ok = True
+        if args.status:
+            api(f"/v1/pages/{page_id}", "PATCH", {"properties": {"状态": {"select": {"name": args.status}}}})
+            got = ((api(f"/v1/pages/{page_id}").get("properties") or {}).get("状态") or {}).get("select") or {}
+            got = got.get("name", "")
+            if got == args.status:
+                print(f"✓ 状态 → {got}（回读一致）")
+            else:
+                print(f"✗ 状态回读不符：期望『{args.status}』实际『{got}』", file=sys.stderr); ok = False
+        if set_props(page_id, args.note or "", args.gloss or ""):
+            ok = False
+        else:
+            if args.note is not None: print("✓ 备注 → 整段覆盖完成（回读一致）")
+            if args.gloss: print("✓ 中文释义 → 写入完成（回读一致）")
+        return 0 if ok else 1
 
     # 1) 定位行（有则复用 / 无则新建，除非 --no-create / --page-id）
     if args.page_id:
@@ -528,9 +677,14 @@ def main() -> int:
             nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
             raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
         if rows:
-            print(f"✓ 台账已有该行：{rich_text_of(rows[0], '排产号')}  page_id={rows[0]['id']}（不会重复建行）")
-            if has_archive(rows[0]["id"]):
-                print("  ⚠ 该行正文已有『创作产出』段落 —— 再归档需加 --force")
+            r0 = rows[0]
+            print(f"✓ 台账已有该行：{rich_text_of(r0, '排产号')}  page_id={r0['id']}（不会重复建行）")
+            st = ((r0.get("properties") or {}).get("状态") or {}).get("select") or {}
+            print(f"    词型={rich_text_of(r0, '词型') or '（空）'}  状态={st.get('name','（空）')}  释义={rich_text_of(r0, '中文释义') or '（空）'}")
+            if rich_text_of(r0, "备注"):
+                print(f"    备注：{rich_text_of(r0, '备注')[:80]}")
+            if has_archive(r0["id"]):
+                print("  ⚠ 该行正文已有『创作产出』段落 —— 再归档走 --rewrite，追加才用 --force")
         elif args.no_create:
             print(f"✗ 台账无「核心词 = {args.word}」的行，且已禁用自动建行(--no-create)")
         else:
@@ -557,24 +711,29 @@ def main() -> int:
         print(f"✓ 台账行{tag}：{sched_no}  page_id={page_id}")
 
     # 防重复归档：该行已有创作产出 → 默认拦截（--dry-run 只预告、不写，故放行）
-    if has_archive(page_id) and not args.force:
+    if has_archive(page_id) and not (args.force or args.rewrite):
         if args.dry_run:
-            print("  ⚠ 该行正文已有『📚 创作产出』段落 —— 真跑会被拦截（需 --force），本次是 --dry-run 预览")
+            print("  ⚠ 该行正文已有『📚 创作产出』段落 —— 真跑会被拦截（改写走 --rewrite，追加才 --force），本次是 --dry-run 预览")
         else:
             raise SystemExit(
                 f"✗ 该行正文已有『📚 创作产出』段落，为防重复归档已拦截。\n"
-                f"  确认要再加一段（例如 L4 重出后补档）→ 加 --force。"
+                f"  覆盖重写 → --rewrite；确实要再加一段 → --force。"
             )
 
-    if not (args.narration and args.l4):
-        raise SystemExit("✗ 归档需要 --narration 和 --l4（或用 --locate 只查看行）")
-
-    narration = parse_narration(args.narration)
-    l4 = Path(args.l4).read_text(encoding="utf-8")
     asset_blocks = asset_mention_blocks(args.asset) if args.asset else []
     blocks = build_blocks(date, args.title, args.title_cn, args.brief, narration, l4, asset_blocks)
 
-    if args.dry_run:
+    if args.rewrite:
+        if row.get("_created"):
+            raise SystemExit("✗ --rewrite 要求行已存在（该行刚刚被新建，无旧段可清）")
+        n_del = delete_archive_section(page_id, dry_run=args.dry_run)
+        if args.dry_run:
+            print(f"[rewrite dry-run] 清场 {n_del} 块 + 重写 {len(blocks)} 块 + 状态/备注/释义（本次未写入）")
+            return 0
+        print(f"✓ 已清掉旧段 {n_del} 个块")
+        print("  ⚠ 清场后写入：若中途失败旧段已删——直接重跑同一条 --rewrite 命令即可（幂等续跑）")
+
+    if args.dry_run and not args.rewrite:
         print(f"[dry-run] 将写入 {len(blocks)} 个顶层 block：")
         for b in blocks:
             t = b["type"]
@@ -610,9 +769,16 @@ def main() -> int:
         print("✗ 回读校验未通过，缺失：" + "、".join(missing))
         return 1
     print(f"✓ 回读校验通过 —— 已归档 Notion（{sched_no}）")
-    # C1: 状态推进并进脚本（归档成功 → 待生图，回读验证）
-    if advance_status(page_id):
-        print("✓ 状态已推进：待生图")
+    # C1: 状态推进并进脚本；显式 --status 优先（W10.1：状态写失败必须非零退出）
+    target = args.status or "待生图"
+    if advance_status(page_id, target):
+        print(f"✓ 状态已推进：{target}")
+    else:
+        return 1
+    if set_props(page_id, args.note or "", args.gloss or ""):
+        return 1
+    if args.note is not None: print("✓ 备注 → 整段覆盖完成（回读一致）")
+    if args.gloss: print("✓ 中文释义 → 写入完成（回读一致）")
     return 0
 
 
