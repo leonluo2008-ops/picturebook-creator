@@ -1,13 +1,13 @@
 # 台账与资产图库运维（L5 · 改写 · 存量重整）
 
 > 创作口径不在这里，这里只管**怎么读写 Notion、怎么判断写对了没有**。
-> 依据：MCP 优先/脚本兜底〔裁定 R5〕；写操作必须所有者同意〔裁定 R5〕；改写模式〔裁定 R4〕；存量回填后置〔裁定 R10〕。
+> 依据：读走 MCP/脚本兜底、**台账写与改写一律脚本一条命令**〔裁定 R15〕；写操作必须所有者同意〔裁定 R5〕；改写模式〔裁定 R4〕；存量回填后置〔裁定 R10〕。
 
-## §1 访问路径：MCP 优先，脚本兜底
+## §1 访问路径：读走 MCP，台账写与改写走脚本〔裁定 R15〕
 
-装好 `dsh-notion-oauth-ui`（OAuth，官方 Notion MCP）后，**所有 Notion 读写优先走 `mcp__notion__*` 工具**；没有该工具时才用 `scripts/notion_*.py` + `NOTION_API_KEY` 兜底。〔裁定 R5〕两条路的口径必须一致，不要一半用 MCP 一半用脚本对着同一行写。
+装好 `dsh-notion-oauth-ui`（OAuth，官方 Notion MCP）后，**所有 Notion 读（查询/fetch）优先走 `mcp__notion__*` 工具**。**台账的写与改写不在此列：一律 `scripts/notion_archive.py` 一条命令**（`--rewrite/--status/--note/--gloss`），不手拼 MCP 写参数〔裁定 R15〕——现场拼参数已实测两次翻车。MCP 写接口只作脚本失效时的人工兜底。
 
-**判定**：工具表里有 `mcp__notion__*` → 一律用 MCP（已带 OAuth，不需要 `NOTION_API_KEY`，不需要手写分页与重试）；没有 → 用脚本。
+**判定**：读 → 有 `mcp__notion__*` 一律用 MCP；写/改写 → 永远脚本。
 
 **新接口的正确入口**
 

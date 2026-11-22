@@ -12,7 +12,7 @@
 - **标题 / 简介 / 双语旁白**：领读本的三件文字产物，各有硬口径（见 `references/rules.md`）。
 - **L4 生图提示词**：整本一个代码块，六类信息齐全，可直接交给即梦（见 `references/l4-spec.md`）。
 - **参考图与一致性**：有参考图按图像锚定，无参考图每页写全外观（见 `references/flow.md` §1）。
-- **台账归档**：MCP 优先、脚本兜底，写操作须所有者同意（见 `references/notion-ops.md`）。
+- **台账归档**：读走 MCP（见 `references/notion-ops.md`）；**写与改写一律 `scripts/notion_archive.py` 一条命令**〔裁定 R15〕，写操作须所有者同意。
 
 ## 工作流程
 

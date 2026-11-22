@@ -57,7 +57,14 @@ version: 14.0.0
 - **L4 的 `旁白:` 行必须「英文 / 中文」双语**（` / ` 分隔，英文在前）；封面行例外，写 `封面（中文 / 英文）`。〔裁定〕
 - **站位 / 机位按需写**：涉及水平面、踮脚够高、同框多主体、前后遮挡时才写，不是每页必写。〔裁定〕
 
-**Notion 只认两条**：读写优先走 `mcp__notion__*`、脚本兜底；**写操作必须所有者同意**，取数必须走 data_source，不能靠视图。〔裁定〕
+**Notion 三条**：读走 `mcp__notion__*`（脚本兜底）；**L5 台账写与改写一律 `scripts/notion_archive.py` 一条命令**（`--rewrite/--status/--note/--gloss`），不手拼 MCP 写参数〔裁定 R15〕；写操作必须所有者同意、取数走 data_source 不靠视图。〔裁定 R5〕
+
+**执行者分工（R14，细则见 `references/executor.md`）**
+
+- 主模型：创作、对话、跑本地脚本一条命令；**台账写入只走 `notion_archive.py`**（A 类）。
+- **必须委派子代理**（带 `provider`+`model` 字面量）：B 类 方案/决策/审计 → 重活槽（审计第二路轻活槽）；C 类 L4 整本装配+五道门禁连跑 → 轻活槽；**归档后的独立回读核对 → 重活槽**。
+- 委派后必做两件事：① `python tools/model_probe.py --newest 15 --expect <provider> <model>` 核路由（SKIP ≠ 通过）；② 产物独立读回（自述不算证据）。
+- 没有 subagent 工具 → 停该操作并告知所有者，不自行降级。
 
 ## 判据
 
@@ -124,7 +131,9 @@ python tools/title_intro_check.py --file <标题简介文件> --word <核心词>
 - **靠视图或会话记忆取台账数据**：视图自带筛选会漏状态；排产号以实时 query 为准〔裁定〕。
 - **未经同意写 Notion 或顺手推进状态**：写操作必须所有者同意，agent 只能自动推 `待生图` / `已生图` 两个动作〔裁定〕。
 - **归档后重跑归档**：状态没推进时只补状态，重跑会写出重复块。
-- **把 `--force` 当覆盖**：它是追加；真覆盖要先删后归。
+- **把 `--force` 当覆盖**：它是追加；改写模式一律 `--rewrite`（先清场再重归档）〔裁定 R15〕。
+- **手拼 MCP 写参数写台账**：写入只走脚本一条命令——现场拼参数已实测两次翻车（`content`/`new_str` 混用）〔裁定 R15〕。
+- **已出图的书改画风或角色设定**：只改文字层；画面绑定的行改完标「需重生成」〔裁定 R14〕。
 
 ## 参考
 
@@ -139,6 +148,7 @@ python tools/title_intro_check.py --file <标题简介文件> --word <核心词>
 | `references/notion-ops.md` | L5 / 改写 / 重整 | MCP 优先与脚本兜底、取数、写入边界与状态机、归档参数、独立回读、资产图库、工具层坑 |
 | `references/cover-design.md` | 画封面 | 视觉层级、文字与场景共同设计、提示词组织顺序、出图验收 |
 | `references/style-library.md` | 选画风 | 17 种风格（S01–S17）的锚点、色彩、适配题材、部分含验证状态 |
+| `references/executor.md` | 委派子代理 / 台账写入 / 核对路由时 | 执行者分工、任务书模板、model_probe 核对、降级与红线 |
 | `references/standard-delivery.md` | 成图验收后 | 转换压缩、页序命名、ZIP 打包、Notion 回传与回读 |
 | `references/cloud-start.md` | 云端 / 改仓前 | 云端启动与接续、仓与版本维护 |
 
