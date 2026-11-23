@@ -1,7 +1,7 @@
 ---
 name: picturebook-creator
 description: 儿童领读绘本创作：把模糊想法变成可直接交给即梦的整本生图提示词，并归档到 Notion 排产台账。触发词：绘本创作、画绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、绘本台账、检查台账、存入台账。
-version: 14.0.0
+version: 14.1.0
 ---
 
 # picturebook-creator
@@ -153,7 +153,16 @@ python tools/title_intro_check.py --file <标题简介文件> --word <核心词>
 | `references/cover-design.md` | 画封面 | 视觉层级、文字与场景共同设计、提示词组织顺序、出图验收 |
 | `references/style-library.md` | 选画风 | 17 种风格（S01–S17）的锚点、色彩、适配题材、部分含验证状态 |
 | `references/executor.md` | 委派子代理 / 台账写入 / 核对路由时 | 执行者分工、任务书模板、model_probe 核对、降级与红线 |
-| `references/standard-delivery.md` | 成图验收后 | 转换压缩、页序命名、ZIP 打包、Notion 回传与回读 |
+| `references/standard-delivery.md` | 成图验收后 | 只存 Eagle（0..8 命名）→ 台账推「已生图」；临时打包仅在对外发送时按需 |
 | `references/cloud-start.md` | 云端 / 改仓前 | 云端启动与接续、仓与版本维护 |
+
+## 配套生图工具（本 skill 不做生图，生图由 DSH 线的 series-image-agent 承担）
+
+本 skill 产出 L4 提示词与台账归档；**整本出图走配套产线**（DSH 工作区 `E:\User\DSH-Project\picturebook`）：
+
+- **一条命令全链**：`python tools/series_gen.py --word <词> --id <排产号> --l4 <L4路径> --refs-json <refs.json路径>`——内部依次跑 服务守卫 → 单视角切分 → 解析 → 出图 → 导出，最后打印 Eagle 入库清单（入库与台账由 DSH agent 经 MCP 执行，须所有者授权）。
+- **代码仓**：`E:\User\GitHub\series-image-agent`（分支 `feature/adapt-picturebook-v14`）；服务守卫 `tools/ensure_service.ps1`（8766 未起则拉起并等就绪）。
+- **参考图纪律**：只喂**单视角**（横图三视角先经 `scripts/split_single_view.py` 切中份，切片在 `refs-single/`）；比例尺场景图不入模型，相对大小用提示词文字写死。
+- 与 L4 的衔接：L4 的【参考图约定】写「图像N = 描述」，由工作区 `projects/<排产号>/refs.json` 绑定到真实文件；逐次出图前取得所有者授权。
 
 语料证据见 `docs/证据-29本盘点.md`（是证据，不是规则；29 本中含 2 本非领读本，统计口径按 27 本领读）。

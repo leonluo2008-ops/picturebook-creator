@@ -2,7 +2,7 @@
 
 把用户的模糊想法变成可直接交给AI生图工具的完整绘本提示词。
 
-**工作区**：本仓库目录（v13 起为 `E:\OneDrive\工作文件夹\儿童绘本\codex-workspace\picturebook-creator`）；**内容真源是 Notion 排产台账**（639 行），本地 `projects/<排产号>/` 为按书的草稿与进度
+**工作区**：`E:\User\DSH-Project\picturebook\picturebook-creator`（DSH 线，经 junction 链为 `~/.dsh/skills/picturebook-creator`，工作分支 `dsh/v14-prod`）；**内容真源是 Notion 排产台账**，本地 `projects/<排产号>/` 为按书的草稿与进度。
 **完整规则以 `SKILL.md` 为准**，本文件仅作总览。
 
 ---

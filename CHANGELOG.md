@@ -1,3 +1,11 @@
+## v14.1.0 — 2026-11-23 · DSH 迁出收口：配套生图产线入 skill
+
+- 新增「配套生图工具」节：生图由 DSH 线 series-image-agent 承担（`tools/series_gen.py` 一条命令全链 = 服务守卫 → 单视角切分 → 解析 → 出图 → 导出 → Eagle 清单）。
+- 参考图纪律固化：**只喂单视角**（`split_single_view.py` 切中份）；比例尺图不入模型，比例提示词文字写死〔2026-11-23 所有者裁定 + B615 整本实证：9/9 页角色数达标〕。
+- `standard-delivery.md`：交付=只存 Eagle（0..8 命名）→ 台账「已生图」；ZIP/Notion「交付文件」仅按需（2026-11-23 裁定的既有口径在参考文件中补链）。
+- AGENTS.md 按 DSH 现实改写；适配包仓与分支坐标同步（V15 属 Codex 线，本线不跟随）。
+- 生图代码侧同批：`parse_prompts.py` 只喂单视角、`split_single_view.py`、`verify_p0.py` 14 项夹具（series-image-agent `5dcec6e`）。
+
 ## v14.0.0 — 2026-11-21 · 清仓重建（只有领读模式）
 
 > 历史条目里引用的 `docs/nodes/V5-audit/*`、`docs/nodes/V10-规则层收口.md`、`docs/盘点-29本-规则族-*`、`scripts/audit_ledger.py` 已于 2026-11-21 清仓删除，git 历史可查。
