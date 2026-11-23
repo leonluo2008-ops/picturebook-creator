@@ -1,11 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""L4 结构门禁 v2.0 —— 块存在性 / 每页词数 / 构图三要素 / 比例 / 页面类型 / Pn 前缀
+"""L4 结构门禁 v2.1 —— 块存在性 / 每页词数 / 构图三要素 / 比例 / 页面类型 / Pn 前缀
 
 这是**自检工具**，严格于「交稿门禁」：SKILL v13 明确「安全区第 3 要素不作为交付门禁，只做人工核」，
 本脚本把它做成硬断言，用于自我把关；是否把它并入强制门禁由所有者决定。
 
-v2.0 相对 v1.0 的修改（依据 2026-11-21 双路行为审计）：
+v2.1 相对 v2.0 的修改（依据 2026-11-23 所有者改口径「目标词按旁白需要出现」）：
+- **逐页目标词判据改为跟随 `入画英文`**：解析每页 `入画英文:` 数组——空数组页（或数组未列目标词）
+  按「按需出现」放行，不要求出现目标词、不再要求「目标词图形化」字面标记（B633/B615 等已交付样本
+  没有该标记，旧判据对真书一律 9 页全红是假阳性）；数组含目标词时要求本页提示词写出该词字面。
+  `--require-all-pages` 恢复旧判据（每页必须出现，给旧书复核用）。
+- **「目标词全书 ≥8 次」降级为提示**：不再进 [必须修复]（rules.md §3 已注明该统计仅历史参考）。
+- `--legacy` 行为不变（跳过段落骨架）。
+
+诚实声明（限制）：逐页判据现在跟随 `入画英文`，空数组页不校验目标词；本脚本不做字面之外的存在性
+判断，也不判断载体的叙事恰当性（载体纪律靠人工核）。
+
+v2.0 保留的行为（依据 2026-11-21 双路行为审计）：
 - **构图三要素**改为在整段提示词里查，**不再要求写在「构图要求」之后**（SKILL 规定块序软）；
   第 3 要素改为 `背景…(边缘|填充|铺边)` 同句判定 —— v1 只查裸子串「边缘」，
   既放过「不得触碰或压到画面的边缘」（假阴），又误杀「自然延伸填充到画面四边」（假阳）
@@ -22,12 +33,13 @@ v2.0 相对 v1.0 的修改（依据 2026-11-21 双路行为审计）：
 - `--max-words` 只允许 ≤10（SKILL 硬上限），超出则 clamp 并告警
 - 段落骨架（2026-11-23 起，--legacy 可跳过）
 
-覆盖说明：块存在性只覆盖「六类 + 构图要求」里可机检的 **4 项**（目标词图形化 / 角色一致性 / 场景一致性 / 构图要求）；
+覆盖说明：块存在性只覆盖「六类 + 构图要求」里可机检的 **3 项**（角色一致性 / 场景一致性 / 构图要求）；
+「目标词图形化」块自 2026-11-23 起不再要求（跟随 `入画英文` 判目标词）。
 镜头类型、场景描述、风格锚点不在此脚本断言范围内。
 段落骨架断言只查标记与字段名，查不出内容写得好不好。
 
 用法:
-  python3 l4_structure_check.py <L4文件> --word coin [--expect-pages 9] [--family-words hot,dot,cot]
+  python3 l4_structure_check.py <L4文件> --word coin [--expect-pages 9] [--family-words hot,dot,cot] [--require-all-pages]
 退出码: 0=过  1=有违规  2=输入/参数错误
 """
 import argparse
@@ -62,12 +74,12 @@ def parse_pages(text):
         s = line.strip()
         m = re.match(r"^旁白[:：]\s*(.*)$", s)
         if m:
-            cur = {"narration": m.group(1), "ratio": "", "ptype": "", "prompt": ""}
+            cur = {"narration": m.group(1), "ratio": "", "ptype": "", "prompt": "", "pics": ""}
             pages.append(cur)
             continue
         if cur is None:
             continue
-        for key, field in (("比例", "ratio"), ("页面类型", "ptype"), ("生图提示词", "prompt")):
+        for key, field in (("比例", "ratio"), ("页面类型", "ptype"), ("生图提示词", "prompt"), ("入画英文", "pics")):
             mm = re.match(r"^" + key + r"[:：]\s*(.*)$", s)
             if mm:
                 cur[field] = mm.group(1)
@@ -76,6 +88,17 @@ def parse_pages(text):
             if cur["prompt"]:
                 cur["prompt"] += "\n" + s
     return pages
+
+
+def parse_pic_words(pics_field):
+    """解析 `入画英文:` 数组为词列表；解析不出返回 None（视为「未声明」，不豁免也不强求）。"""
+    s = (pics_field or "").strip()
+    m = re.search(r"\[([^\]]*)\]", s)
+    if not m:
+        return None
+    body = m.group(1)
+    items = [x.strip().strip("\"'“”") for x in body.split(",") if x.strip()]
+    return items
 
 
 def english_for_count(narration, is_cover):
@@ -183,6 +206,8 @@ def main():
     ap.add_argument("--expect-pages", type=int, default=0)
     ap.add_argument("--no-cover", action="store_true", help="允许第 0 页不是封面（跳过封面专属断言）")
     ap.add_argument("--legacy", action="store_true", help="跳过段落骨架检查（2026-11-23 之前归档的旧书）")
+    ap.add_argument("--require-all-pages", action="store_true",
+                    help="恢复旧判据：每页（词族页除外）都必须出现目标词，缺一页记违规（旧书复核用）")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -264,12 +289,22 @@ def main():
                 if miss:
                     fam_note.append("%s 缺词族词：%s" % (no, "、".join(miss)))
             else:
-                has_word = ("目标词图形化" in pr)
-                fam_note.append("%s 是词族拓展页，未提供 --family-words，词族词本身未机审（仅查图形化块）" % no)
+                has_word = True  # 词族页载体是词族词，未给 --family-words 时不再按「目标词图形化」块判
+                fam_note.append("%s 是词族拓展页，未提供 --family-words，词族词本身未机审" % no)
         else:
-            # 双条件：既有「目标词图形化」块，页内也真的出现该词字面（v1 有块即短路，--word 传错也过）
+            # 2026-11-23 起跟随 `入画英文`：数组含目标词 → 要求本页提示词写出该词字面；
+            # 空数组 / 未列目标词 → 按需出现放行；--require-all-pages 恢复旧判据（每页必须出现）
             word_present = re.search(forms_pattern(args.word), pr, flags=re.I) is not None
-            has_word = ("目标词图形化" in pr) and word_present
+            if args.require_all_pages:
+                has_word = word_present
+            else:
+                pic_words = parse_pic_words(p.get("pics"))
+                if pic_words is None:
+                    has_word = word_present  # 无合法数组 → 退回查字面（不豁免）
+                else:
+                    pic_declared = any(re.search(r"(?<![A-Za-z])" + re.escape(args.word) + r"(?![A-Za-z])",
+                                                 w, flags=re.I) for w in pic_words)
+                    has_word = (not pic_declared) or word_present
 
         rows.append((no, p.get("ratio", ""), ptype, words, has_role, has_scene, has_comp, safety, has_word))
 
@@ -297,12 +332,15 @@ def main():
         if words > max_words:
             issues.append("[%s] 每页英文 %d 词 > 硬上限 %d" % (no, words, max_words))
         if not has_word:
-            issues.append("[%s] 缺「目标词图形化」块" % no)
+            if args.require_all_pages:
+                issues.append("[%s] --require-all-pages：本页提示词未出现目标词（旧判据每页必须出现）" % no)
+            else:
+                issues.append("[%s] 入画英文含目标词，但本页提示词未写出该词字面" % no)
         if PN.match((p.get("narration") or "").strip()):
             issues.append("[%s] 旁白行带 Pn 前缀" % no)
 
     if not args.quiet:
-        print("解析 %d 页；自检项：块存在性(六类 + 构图要求里 4 项) / 词数≤%d / 构图三要素 / 比例 / 页面类型 / Pn 前缀"
+        print("解析 %d 页；自检项：块存在性(六类 + 构图要求里 3 项；目标词判据跟随「入画英文」) / 词数≤%d / 构图三要素 / 比例 / 页面类型 / Pn 前缀"
               % (len(pages), max_words))
         print("| 页 | 比例 | 页面类型 | 词数 | 角色 | 场景 | 构图 | 80% | 10% | 背景铺边 | 目标词 |")
         print("|---|---|---|---|---|---|---|---|---|---|---|")
@@ -347,8 +385,7 @@ def main():
     for i, p in enumerate(pages):
         en = english_for_count(p.get("narration"), i == 0)
         word_total += len(wpat.findall(en))
-    if word_total < 8:
-        book_issues.append("目标词全书只出现 %d 次（按原形+复数计），SKILL 要求 ≥8 次" % word_total)
+    # 「≥8 次」自 2026-11-23 起降级为提示，不再进 [必须修复]（rules.md §3 订正：仅历史参考）
 
     cn_lens, cn_missing = [], 0
     for i, p in enumerate(pages):
@@ -368,7 +405,8 @@ def main():
             book_notes.append("[P%d] 中文旁白 %d 字，超出建议区间 8–14（软提示）" % (i, n))
 
     print("\n-- 全书级约束 --")
-    print("  内页数 %d（要求 8–16）；目标词全书 %d 次（原形+复数，要求 ≥8）" % (inner, word_total))
+    print("  内页数 %d（要求 8–16）" % inner)
+    print("  · 目标词全书出现 %d 次（原形+复数）；旧口径要求 ≥8，2026-11-23 起仅作参考" % word_total)
     if cn_lens:
         print("  中文内页字数 %d–%d（硬上限 30）" % (min(cn_lens), max(cn_lens)))
     if cn_missing:

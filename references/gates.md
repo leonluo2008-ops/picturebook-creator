@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1 | `tools/grammar_check.py` | 旁白表：中英大小写、标点、**目标词双语同现** | 0 过 / 1 违规（**读不到文件也是 1**）/ 2 解析到 0 行或参数错 |
 | 2 | `tools/l4_case_check.py` | L4 画面词形态 + 旁白行双语 | 0 过 / 1 违规（**读不到文件、解析到 0 页也是 1**）/ 2 仅 argparse 参数错 |
-| 3 | `scripts/l4_presence_check.py` | L4：逐页**在不在**（场景段是否出现目标词） | 0 过 / 1 漏页 / 2 参数错（**读不到文件也是 2**）|
+| 3 | `scripts/l4_presence_check.py` | L4：逐页**在不在**（场景段是否出现目标词）；2026-11-23 起默认按需模式 | 0 过 / 1 违规（仅 `--require-all` 或 `--min-pages` 触发）/ 2 参数错（**读不到文件也是 2**）|
 | 自检 A | `scripts/l4_structure_check.py` | L4 结构：块存在性、词数、构图三要素、比例、页型、`Pn` 前缀、内页数、目标词次数、中文句长 | 0 / 1 / 2（读不到文件、第 0 页不是封面 → 2）|
 | **L3 出口** | `tools/title_intro_check.py --gloss <释义> --pos <词型>` | 标题七判据（E1–E5 + G1/G2/P1）+ 简介可机判项 | 0 / 1 / 2（读不到文件、标题或简介任一侧 0 条 → 2）|
 
@@ -30,7 +30,7 @@ python tools/grammar_check.py <旁白表文件.md> --word <核心词> --family-p
   > **词形覆盖到哪儿、漏了怎么办**（2026-11-21 定）：`tools/wordforms.py` 覆盖本 skill 四类核心词的常见屈折形——名词 `s/es/ies/ves`、不规则复数（feet/children/scarves…）与复合词（snowman→snowmen）；动词 `s/es/ing/ed`（含 e 去尾、CVC 双写、y→ied）与常见不规则（went/ran/saw…）；形容词 `er/est`（含 y→ier、双写）与不规则（better/best）。
   > **英语屈折形是开放集合，生成器不可能穷尽**。遇到生僻不规则词（如 `dice`、`kine`、专有名词），按工具分别处理：
   > · **第 1、2 道**（grammar / l4_case）：**重复 `--word`** 把词形一起传（`--word die --word dice`）；
-  > · **第 3 道**（presence）：重复 `--word` 是「**每页都必须出现**」的 AND 语义，传多个词形会把合规页判红——请改用 `--page-words <页号>=词形` 逐页指定该页实际词形；
+  > · **第 3 道**（presence）：重复 `--word` 是「**每页都必须出现**」的 AND 语义（`--require-all` 下会把合规页判红）——请改用 `--page-words <页号>=词形` 逐页指定该页实际词形；
   > · **自检 structure**：只接受一个 `--word`，这类词请人工核它的目标词计数。
 
 - **软提醒（不阻断）**：中英句末标点数量不一一对应只打印提示。中英句界不一一对应是常态（英文两句、中文一句流水反而更顺口），为凑数量往中文里塞句号是错的——断句节奏由 L3.5 出声朗读裁决。
@@ -52,14 +52,16 @@ python tools/l4_case_check.py <L4文件.txt> --word floor --word door   # 词族
 ### 第 3 道：L4 逐页「在不在」
 
 ```bash
-python scripts/l4_presence_check.py <L4文件.txt> --word <核心词> --expect-pages <页数>
+python scripts/l4_presence_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--require-all] [--min-pages N]
 python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 --page-words 7=hot,dot,cot
 ```
+
+- **默认按需模式（2026-11-23 所有者改口径）**：目标词按旁白需要出现、不强制每页；缺页只打印提示行（「本页无目标词（按需模式下不构成错误）」），**EXIT=0**。`--require-all` 恢复旧严格口径（每页必须出现，缺一页 EXIT=1）；`--min-pages N` 要求至少 N 页出现，否则 EXIT=1。
 
 - **`--expect-pages` 必须传**（含封面）：不传时只校验「解析到的页」，遇到 `- 旁白:`、`**旁白:**` 这类非标准写法会**静默丢页**仍报全过（v2.0 已全量剥离 `\ufeff`，BOM 不再丢页；但 **`l4_case_check` 不剥 BOM**，中段 `\ufeff` 会让它少解析一页却仍报「全过」——第 2 道没有页数断言，页数要人工核）。领读默认 9 页＝封面 + 8 内页，页数不同按实际传。
 - **词族拓展页**教学载体是词族词，不要求核心词入画——用 `--page-words <页号>=词1,词2` 逐页指定本页词集（页号 0＝封面，1＝第一个内页）。**不传 `--page-words` ＝ 该页完全不校验**：脚本跳过该页、打印「跳过 N 页」并 **EXIT=0**，不是「按核心词判缺」。所以必须传才有校验。
 - 匹配已加词界 `(?<![a-z])word(?![a-z])`，不再出现 `soa` 命中 `soap`。
-- **它只做字面匹配、不读封面书名**：封面这页仍需人工按书名核对。
+- **它只做字面匹配、不读封面书名**：封面这页仍需人工按书名核对。它也**不判断载体的叙事恰当性**——目标词是否被塞进叙事道具（纸条、署名、礼盒缎带等）靠人工核（2026-11-23 新增载体纪律，见 `l4-spec.md` §3 第 4 项）。
 - `--page-words` 空词集 / 越界页码 / 重复页号 → exit 2（不静默改判）。
 
 ## §3 参数归属（最容易传错的地方）
@@ -69,6 +71,9 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 | `--word` | **五道都要**（`title_intro_check` 的 `--word` 只在 `--file` 模式必填） | `grammar_check` / `l4_case_check` / `l4_presence_check` 可重复传（`action=append`）；**自检 `l4_structure_check.py` 只接受一个** `--word`，重复传静默取最后一个 |
 | `--expect-pages` | 门禁只要求 **presence**；`l4_structure_check.py` 也有（自检用） | grammar / l4_case 没有这个参数，传了 argparse 直接 exit 2 |
 | `--page-words` | **只属 presence** | 格式 `页码=词1,词2` |
+| `--require-all` | **只属 presence** | 恢复旧严格口径：每页必须出现，缺一页 EXIT=1 |
+| `--min-pages N` | **只属 presence** | 要求至少 N 页出现，否则 EXIT=1（默认 0＝不设下限） |
+| `--require-all-pages` | **只属自检 `l4_structure_check.py`** | 恢复旧判据：每页提示词都必须出现目标词（给 2026-11-23 前旧书复核用）；默认判据跟随每页 `入画英文`——空数组页不校验 |
 | `--family-words` | **只属 structure** | 逗号分隔，如 `--family-words hot,dot,cot` |
 | `--family-page` | 只属 grammar_check | 词族页页号，默认 `P7` |
 | `--max-words` | 只属 structure | 默认 10；只允许 ≤10，超出会被 clamp 并告警 |
@@ -79,7 +84,7 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 ## §4 L3 出口门禁 + 结构自检
 
 ```bash
-python scripts/l4_structure_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--family-words hot,dot,cot] [--legacy]
+python scripts/l4_structure_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--family-words hot,dot,cot] [--legacy] [--require-all-pages]
 python tools/title_intro_check.py --file <标题简介文件.md> --word <核心词> --gloss <台账中文释义> --pos <台账词型>
 ```
 
