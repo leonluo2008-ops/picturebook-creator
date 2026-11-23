@@ -157,7 +157,7 @@ def check_title(text, word, pos=None, gloss=None):
     return issues, n
 
 
-def check_intro(text, word):
+def check_intro(text, word, gloss=None):
     """只取「## 二、简介」之后、下一个 ##/### 之前的引用行。返回 (问题列表, 简介条数)。"""
     issues = []
     m = re.search(r"(?s)##\s*二、简介(.*?)(?=\n##\s|\n###\s|\Z)", text)
@@ -171,6 +171,13 @@ def check_intro(text, word):
             intros.append(x)
     for k, x in enumerate(intros):
         tag = "简介%s" % "ABC"[k] if k < 3 else "简介#%d" % (k + 1)
+        # 2026-11-23 所有者裁定：简介必须含中文释义（孩子要先读到中文核心词，
+        # 不能只有英文目标词）。给了 --gloss 才执行。
+        if gloss:
+            g = _strip_punct(gloss)
+            if g and g not in _strip_punct(x):
+                issues.append("%s 不含中文释义「%s」（简介必须让孩子读到中文核心词）：%r"
+                              % (tag, gloss, x[:40]))
         hits = len(re.findall(forms_pattern(word), x, re.I))
         if hits != 1:
             issues.append("%s 目标词出现 %d 次（应恰好 1 次）：%r" % (tag, hits, x[:40]))
@@ -207,7 +214,7 @@ def main():
             print("读不到文件：%s" % e)
             return 2
         ti, nt = check_title(t, args.word, args.pos, args.gloss)
-        ii, ni = check_intro(t, args.word)
+        ii, ni = check_intro(t, args.word, args.gloss)
         print("检查 %s（核心词 %s%s%s）" % (
             os.path.basename(args.file), args.word,
             "，词型 %s" % args.pos if args.pos else "",
