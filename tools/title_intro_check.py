@@ -99,14 +99,18 @@ def check_title(text, word, pos=None, gloss=None):
                 issues.append("%s 含方法论禁词 %r" % (tag, b))
         # ── R13 新增：释义在场 + 零干扰 + 词型一致性 ──
         if gloss:
-            g = _strip_punct(gloss)
-            cn_clean = _strip_punct(cn)
+            # 词组核心词（如 coloring book）必须保留空格才能被词界正则命中；
+            # _strip_punct 会吃掉空格导致 G2 结构性误报——这里用保留空格的变体。
+            def _strip_keep_space(s):
+                return re.sub(r"[\s，,。.、！!？?：:；;“”\"'’‘（）()\[\]《》/|·\-—_]+", " ", s).strip()
+            g = _strip_keep_space(gloss)
+            cn_clean = _strip_keep_space(cn)
             if g and g not in cn_clean:
                 issues.append("%s [G1] 中文列不含台账释义「%s」：%r" % (tag, gloss, cn))
             else:
                 residue = cn_clean.replace(g, "") if g else cn_clean
-                residue = re.sub(forms_pattern(word), "", residue, flags=re.I)
-                bad = sorted({ch for ch in residue if ch not in CN_WHITELIST})
+                residue = re.sub(forms_pattern(word), "", residue, flags=re.I).strip()
+                bad = sorted({ch for ch in residue if ch not in CN_WHITELIST and not ch.isspace()})
                 if bad:
                     issues.append("%s [G2] 中文列在释义与核心词之外多出 %s（释义「%s」）：%r"
                                   % (tag, "".join(bad), gloss, cn))
