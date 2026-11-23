@@ -109,7 +109,7 @@ python tools/title_intro_check.py --file <标题简介文件> --word <核心词>
 **归档与交付判据**
 
 - 归档：`python scripts/notion_verify.py --word <核心词> --pages <页数>` EXIT=0，状态回读为 `待生图`。
-- 交付：页数与页序齐全、尺寸体积达标、ZIP 成员齐全、Notion「交付文件」已挂、状态回读 `已生图`（`standard-delivery.md`）。
+- 交付：页数与页序齐全、尺寸比例达标、**成图已在 Eagle 素材库**（张数 = 封面 + 内页数）、状态回读 `已生图`、备注写明 Eagle 文件夹位置（2026-11-23 起不再打包上传 Notion、不再写「交付文件」，见 `standard-delivery.md`）。
 
 **只认「做过」的判据**：命令有输出、文件有读回。自查说「应该可以」不算。
 
