@@ -20,9 +20,11 @@ v2.0 相对 v1.0 的修改（依据 2026-11-21 双路行为审计）：
 - 页数断言 `--expect-pages`；全量剥离 `\\ufeff`；`UnicodeDecodeError` 归 2
 - 退出码契约：0=过 / 1=有违规 / 2=输入或参数错误
 - `--max-words` 只允许 ≤10（SKILL 硬上限），超出则 clamp 并告警
+- 段落骨架（2026-11-23 起，--legacy 可跳过）
 
 覆盖说明：块存在性只覆盖「六类 + 构图要求」里可机检的 **4 项**（目标词图形化 / 角色一致性 / 场景一致性 / 构图要求）；
 镜头类型、场景描述、风格锚点不在此脚本断言范围内。
+段落骨架断言只查标记与字段名，查不出内容写得好不好。
 
 用法:
   python3 l4_structure_check.py <L4文件> --word coin [--expect-pages 9] [--family-words hot,dot,cot]
@@ -90,6 +92,88 @@ def english_for_count(narration, is_cover):
     return s
 
 
+# ── 段落骨架（2026-11-23 起）────────────────────────────────
+SKELETON_FIELDS = ("目标单词", "中文释义", "目标年龄", "画面风格", "文字风格",
+                   "主角外观", "动作约定", "站位约定", "机位约定")
+SECTION_START = re.compile(r"^【[^】]+】")
+ANCHOR_LINE = re.compile(r"^\d+\)\s*\S")
+PAGE_MARK = re.compile(r"^(页序|旁白)[:：]")
+
+
+def check_skeleton(text):
+    """段落骨架断言：只查标记与字段名，返回违规文案列表。"""
+    text = text.replace("\ufeff", "")
+    lines = text.splitlines()
+    issues = []
+
+    # 指令头：第一个 页序:/旁白: 行之前的引导文本
+    first_page = next((i for i, ln in enumerate(lines) if PAGE_MARK.match(ln.strip())), len(lines))
+    head = "\n".join(lines[:first_page])
+    if not all(p in head for p in ("提取生图提示词", "不作为小字幕", "回看")):
+        issues.append("[段落骨架] 缺指令头（应有 4 行：任务定义/禁令/文字图形/一致性）")
+
+    # 段二/段三/段四：从该【…】行到下一个【…】行或第一个 页序:/旁白: 行
+    sections = {}
+    starts = [i for i, ln in enumerate(lines) if SECTION_START.match(ln.strip())]
+    for idx, start in enumerate(starts):
+        end = min(starts[idx + 1] if idx + 1 < len(starts) else len(lines), first_page)
+        name = lines[start].strip()
+        sections[name] = "\n".join(lines[start + 1:end])
+
+    def field_missing(name, fields):
+        seg = sections.get(name, "")
+        return [f for f in fields
+                if not re.search(re.escape(f) + r"\s*[:：]", seg)]
+
+    g = "【全局设计约定】"
+    if g not in sections:
+        issues.append("[段落骨架] 【全局设计约定】缺字段：" + "，".join(SKELETON_FIELDS))
+    else:
+        miss = field_missing(g, SKELETON_FIELDS)
+        if miss:
+            issues.append("[段落骨架] 【全局设计约定】缺字段：" + "，".join(miss))
+
+    if "【全书文字与配色】" not in sections:
+        issues.append("[段落骨架] 缺段【全书文字与配色】")
+
+    a = "【主要场景锚点】"
+    if a not in sections:
+        issues.append("[段落骨架] 缺段【主要场景锚点】")
+    else:
+        n = sum(1 for ln in sections[a].splitlines() if ANCHOR_LINE.match(ln.strip()))
+        if n < 3:
+            issues.append("[段落骨架] 【主要场景锚点】少于 3 个（实际 %d 个）" % n)
+
+    # 逐页：页序: 与 入画英文:（页界 = 页序: 行；无 页序: 时以 旁白: 行开页）
+    page_no = 0
+    seen_ps = seen_pic = False
+    opened_by_ps = False
+
+    def flush_page():
+        if page_no == 0:
+            return
+        if not seen_ps:
+            issues.append("[段落骨架] 第 %d 页缺 `页序:`" % page_no)
+        if not seen_pic:
+            issues.append("[段落骨架] 第 %d 页缺 `入画英文:`" % page_no)
+
+    for ln in lines[first_page:]:
+        s = ln.strip()
+        if re.match(r"^页序[:：]", s):
+            flush_page()
+            page_no += 1
+            seen_ps, seen_pic, opened_by_ps = True, False, True
+        elif re.match(r"^旁白[:：]", s):
+            if not opened_by_ps:
+                flush_page()
+                page_no += 1
+                seen_ps, seen_pic = False, False
+        elif re.match(r"^入画英文[:：]", s):
+            seen_pic = True
+    flush_page()
+    return issues
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("l4file")
@@ -98,6 +182,7 @@ def main():
     ap.add_argument("--family-words", default="", help="词族拓展页应出现的词族词（逗号分隔）")
     ap.add_argument("--expect-pages", type=int, default=0)
     ap.add_argument("--no-cover", action="store_true", help="允许第 0 页不是封面（跳过封面专属断言）")
+    ap.add_argument("--legacy", action="store_true", help="跳过段落骨架检查（2026-11-23 之前归档的旧书）")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -229,9 +314,25 @@ def main():
         for n in fam_note:
             print("  · " + n)
 
+    # ── 段落骨架（2026-11-23 起；--legacy 可跳过）──
+    if args.legacy:
+        print("（--legacy：跳过段落骨架检查）")
+        skel_issues = []
+    else:
+        skel_issues = check_skeleton(text)
+
     if issues:
         print("\n[必须修复] %d 处" % len(issues))
         for x in issues:
+            print("  ✗ " + x)
+        if skel_issues:
+            print("\n[段落骨架]（2026-11-23 起）")
+            for x in skel_issues:
+                print("  ✗ " + x)
+        return 1
+    if skel_issues:
+        print("\n[段落骨架]（2026-11-23 起）")
+        for x in skel_issues:
             print("  ✗ " + x)
         return 1
 

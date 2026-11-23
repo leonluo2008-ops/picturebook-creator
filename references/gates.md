@@ -79,9 +79,11 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 ## §4 L3 出口门禁 + 结构自检
 
 ```bash
-python scripts/l4_structure_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--family-words hot,dot,cot]
+python scripts/l4_structure_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--family-words hot,dot,cot] [--legacy]
 python tools/title_intro_check.py --file <标题简介文件.md> --word <核心词> --gloss <台账中文释义> --pos <台账词型>
 ```
+
+- `--legacy`：跳过段落骨架断言（仅用于 2026-11-23 前归档的旧书）。
 
 - `l4_structure_check.py`：块存在性（「六类 + 构图要求」里可机检的 4 项：目标词图形化 / 角色一致性 / 场景一致性 / 构图要求）/ 每页词数 / 构图三要素 / 比例 / 页面类型 / `Pn` 前缀 / 内页数 / 目标词全书次数 / 中文句长。构图三要素在整段提示词里查，第 3 要素按「背景…(边缘|填充|铺边)」同句判定。**封面页型不是「认知页」→ 记一条 issue、exit 1**；**第 0 页识别不出封面 → exit 2**（此时加 `--no-cover` 跳过封面专属断言）。**它会把按旧口径产出的稿判红，属预期。**
 - `title_intro_check.py`：标题七条（E1–E5 原有五条 + G1 释义逐字在场 / G2 白名单零干扰 / P1 词型非动作类时禁动词屈折与祈使尾）与简介（目标词恰 1 次、首句不以场景词开头、无禁词、单句 ≤30 字）。**必须传 `--gloss` 才跑 G1/G2，不传会打印「未执行」提示**——此时不能据此说标题合规。语义地基无法机检。
