@@ -160,9 +160,9 @@ python tools/title_intro_check.py --file <标题简介文件> --word <核心词>
 | `references/standard-delivery.md` | 成图验收后 | 只存 Eagle（0..8 命名）→ 台账推「已生图」；临时打包仅在对外发送时按需 |
 | `references/cloud-start.md` | 云端 / 改仓前 | 云端启动与接续、仓与版本维护 |
 
-## 配套生图工具（本 skill 不做生图，生图由 DSH 线的 series-image-agent 承担）
+## 生图路径（灵活多路，不写死；本 skill 不做生图）
 
-本 skill 产出 L4 提示词与台账归档；**整本出图走配套产线**（DSH 工作区 `E:\User\DSH-Project\picturebook`）：
+本 skill 产出 L4 提示词与台账归档。**生图路径灵活，不锁定任何一条**：提示词可直接交给即梦等外部生图工具，也可走 DSH 线配套产线（下述本机 series-image-agent，仅是可选路径之一，不是默认更不是唯一）。选哪条按当次情况与所有者意见定：
 
 - **一条命令全链**：`python tools/series_gen.py --word <词> --id <排产号> --l4 <L4路径> --refs-json <refs.json路径>`——内部依次跑 服务守卫 → 单视角切分 → 解析 → 出图 → 导出，最后打印 Eagle 入库清单（入库与台账由 DSH agent 经 MCP 执行，须所有者授权）。
 - **代码仓**：`E:\User\GitHub\series-image-agent`（分支 `feature/adapt-picturebook-v14`）；服务守卫 `tools/ensure_service.ps1`（8766 未起则拉起并等就绪）。

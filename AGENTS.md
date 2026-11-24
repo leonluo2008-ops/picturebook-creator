@@ -9,10 +9,11 @@
 用户已授权 Notion 联动及只读复用 Hermes 凭据。凭据来源为 C:\Users\leon3\AppData\Local\hermes\.env；仅在脚本进程内加载，不打印、复制、提交或修改。检查凭据本身不授权修改 Notion 数据。
 新作品保存到**本仓内** `绘本创作/作品/` 下的新目录，不覆盖旧作品。（注意：根目录下另有一个 `绘本创作/作品/`，归属待所有者裁定，勿混用。）
 
-## 生图产线（series-image-agent）
+## 生图路径（可选之一，非唯一）
 
+本机产线（series-image-agent）只是生图的**可选路径之一，不写死**：提示词同样可直接交给即梦等外部生图工具，按当次情况与所有者意见选路。
 代码仓：`E:\User\GitHub\series-image-agent`。分支以仓库实况为准——当前检出 `feature/scene-platform`（2026-11-24 初建，场景契约化平台）；v14 适配线为 `feature/adapt-picturebook-v14`；动分支前先问所有者哪条是当前产线。
-链路：`parse_prompts.py`（L4→book yaml，refs.json 绑定）→ `batch.py`（ComfyUI 出图）→ `eagle_export.py`（按页导出）→ Eagle 入库 → 台账推「已生图」。
+本机链路：`parse_prompts.py`（L4→book yaml，refs.json 绑定）→ `batch.py`（ComfyUI 出图）→ `eagle_export.py`（按页导出）→ Eagle 入库 → 台账推「已生图」。
 参考图纪律：**只喂单视角**——横图三视角先用 `scripts/split_single_view.py` 切中份（`refs-single/`），比例尺图不入模型；比例用提示词文字写死。
 图像生成任务须逐次取得所有者授权；台账/Eagle 入库等写入动作同样先报后做。
 
