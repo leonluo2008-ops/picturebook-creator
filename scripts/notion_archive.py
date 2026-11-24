@@ -667,6 +667,7 @@ def main() -> int:
         return 0 if ok else 1
 
     # 1) 定位行（有则复用 / 无则新建，除非 --no-create / --page-id）
+    row = None  # --page-id 路径不解析 row 对象，行必然已存在
     if args.page_id:
         page_id, sched_no = args.page_id, "(--page-id 指定)"
         print(f"✓ 台账行：{sched_no}  page_id={page_id}")
@@ -724,7 +725,7 @@ def main() -> int:
     blocks = build_blocks(date, args.title, args.title_cn, args.brief, narration, l4, asset_blocks)
 
     if args.rewrite:
-        if row.get("_created"):
+        if row is not None and row.get("_created"):
             raise SystemExit("✗ --rewrite 要求行已存在（该行刚刚被新建，无旧段可清）")
         n_del = delete_archive_section(page_id, dry_run=args.dry_run)
         if args.dry_run:
