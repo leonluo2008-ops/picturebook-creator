@@ -1,0 +1,7 @@
+﻿解析 9 页；核对目标词 ['springroll'] 的「在不在」（按需模式（缺页只提示，不构成错误））
+按页指定词集：封面=spring roll,1=spring roll,2=spring roll,3=spring roll,4=spring roll,5=spring roll,6=spring roll,7=spring roll,8=spring roll
+· 本页无目标词（按需模式下不构成错误）：封面, 封面, 封面, 封面, 封面, 封面, 封面, 封面, P1, P2, P3, P4, P5, P6, P7, P8
+目标词出现 0 页 / 共 9 页
+按需模式核对完成
+诚实声明：本脚本只做字面匹配与缺页提示，不判断载体的叙事恰当性（载体纪律靠人工核）。
+注意：本脚本只做字面匹配，不读封面书名；封面那页需人工按书名校对。需要旧严格口径时加 --require-all。
