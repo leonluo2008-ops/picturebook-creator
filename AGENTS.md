@@ -1,15 +1,17 @@
-# 绘本工作区（DSH 线）
+# picturebook-creator（DSH 侧 skill 仓）
+
+> 本仓只装 **DSH 侧 `picturebook-creator` skill** 及其成书产物。上级目录 `E:\User\DSH-Project\picturebook` 是 DSH 收纳根（非本仓的一部分）：整理/归置类规则见根 `AGENTS.md` 与 `docs/项目适配包.md`；本文件只管本仓自身。任何会话先确认 cwd 是本仓而不是根目录，再按本文件行事。
 
 工作分支：**`dsh/v14-prod`**（本机 DSH 实际工作线，当前版本 `14.0.0`）；**`main`** 为稳定线；`codex/picturebook-adaptation` 为 v11 基线、**已冻结**。V15 属 Codex 工作区分支，本线不跟随、不合并。
-本检出位于 `E:\User\DSH-Project\picturebook\picturebook-creator`，经 **junction** 链接为 `~/.dsh/skills/picturebook-creator`（DSH 读取层）；工作区根为 `E:\User\DSH-Project\picturebook`（独立 git，含 docs / projects / tools）。
+本检出位于 `E:\User\DSH-Project\picturebook\picturebook-creator`，经 **junction** 链接为 `~/.dsh/skills/picturebook-creator`（DSH 读取层）。
 创作读取本目录 SKILL.md 对应章节及 SOUL.md；内容规范与逐步确认规则继续有效，生图由 DSH 承担。
 修改只保存在 `dsh/v14-prod` 分支；**不自动推送、合并**（推送/并回需所有者点头）。不修改全局 Git、Python 配置。
 用户已授权 Notion 联动及只读复用 Hermes 凭据。凭据来源为 C:\Users\leon3\AppData\Local\hermes\.env；仅在脚本进程内加载，不打印、复制、提交或修改。检查凭据本身不授权修改 Notion 数据。
-新作品保存到 `绘本创作/作品/` 下的新目录，不覆盖旧作品。
+新作品保存到**本仓内** `绘本创作/作品/` 下的新目录，不覆盖旧作品。（注意：根目录下另有一个 `绘本创作/作品/`，归属待所有者裁定，勿混用。）
 
 ## 生图产线（series-image-agent）
 
-代码仓：`E:\User\GitHub\series-image-agent`，分支 `feature/adapt-picturebook-v14`。
+代码仓：`E:\User\GitHub\series-image-agent`。分支以仓库实况为准——当前检出 `feature/scene-platform`（2026-11-24 初建，场景契约化平台）；v14 适配线为 `feature/adapt-picturebook-v14`；动分支前先问所有者哪条是当前产线。
 链路：`parse_prompts.py`（L4→book yaml，refs.json 绑定）→ `batch.py`（ComfyUI 出图）→ `eagle_export.py`（按页导出）→ Eagle 入库 → 台账推「已生图」。
 参考图纪律：**只喂单视角**——横图三视角先用 `scripts/split_single_view.py` 切中份（`refs-single/`），比例尺图不入模型；比例用提示词文字写死。
 图像生成任务须逐次取得所有者授权；台账/Eagle 入库等写入动作同样先报后做。
