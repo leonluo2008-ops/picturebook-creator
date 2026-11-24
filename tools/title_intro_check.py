@@ -117,7 +117,9 @@ def check_title(text, word, pos=None, gloss=None):
         if pos and pos.strip() in NON_VERB_POS:
             toks = _en_tokens(en)
             lower = [t.lower() for t in toks]
-            verbish = [f for f in word_forms(word) if f.lower().endswith(("ing", "ed"))]
+            verbish = [f for f in word_forms(word)
+                       if f.lower().endswith(("ing", "ed"))
+                       and f.lower() not in (word.lower(), word.lower() + "s", word.lower() + "es")]
             for t in lower:
                 if t in [v.lower() for v in verbish]:
                     issues.append("%s [P1] 词型「%s」却用了动词形态 %r：%r" % (tag, pos, t, en))
