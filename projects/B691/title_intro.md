@@ -1,5 +1,7 @@
 选定标题：警察局，Police Station / Police Station
 
+选定简介：蓝蓝的警车，深蓝色的制服。这里有会帮忙的警察。快进来看看，警察局，police station！
+
 ## 二、简介
 
 > 蓝蓝的警车，深蓝色的制服。这里有会帮忙的警察。快进来看看，警察局，police station！

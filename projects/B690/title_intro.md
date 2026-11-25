@@ -1,5 +1,7 @@
 选定标题：消防站，Fire Station / Fire Station
 
+选定简介：大红门开了，里面停着亮闪闪的红色消防车。快进来看看消防站，fire station！
+
 ## 二、简介
 
 > 大红门开了，里面停着亮闪闪的红色消防车。快进来看看消防站，fire station！

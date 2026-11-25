@@ -1,5 +1,7 @@
 选定标题：邮局，Post Office / Post Office
 
+选定简介：写好信，贴上邮票。快把它投进绿色的邮筒里吧，邮局，post office！
+
 ## 二、简介
 
 > 写好信，贴上邮票。快把它投进绿色的邮筒里吧，邮局，post office！

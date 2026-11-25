@@ -2,7 +2,7 @@
  
 ## 一、标题
  
-选定标题：筷子，chopsticks / Chopsticks
+选定标题：筷子，Chopsticks / Chopsticks
  
 量词取舍：带「一双筷子」与省掉各念一遍——全书是关于学习使用筷子这一动作的过程，省掉量词直给主题更自然。
  
