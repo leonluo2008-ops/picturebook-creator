@@ -6,6 +6,6 @@
 | P3 | I love the fire station. | 我好喜欢消防站，fire station。 | — |
 | P4 | We are in the fire station. | 我们在消防站，fire station。 | 可带读 fire station |
 | P5 | The fire station is noisy. | 消防站里好吵呀，fire station。 | — |
-| P6 | Time to go! | 消防车要出动喽，fire station。 | — |
+| P6 | Time to go! | 消防车要出动喽！ | — |
 | P7 | Bye-bye, fire station! | 再见啦，消防站，fire station！ | 可带读 fire station |
 | P8 | Which one is the fire station? | 哪一个是消防站，fire station？ | 停一下，让孩子先看或先说 |
