@@ -12,4 +12,4 @@
 | P9 | I want that toy store plane. | 我想要那架飞船，toy store。 | 可带读 toy store |
 | P10 | The giraffe helps. | 长颈鹿店员帮忙啦。 | — |
 | P11 | Bobby loves the toy store. | 波比喜欢玩具店，toy store。 | 可带读 toy store |
-| P12 | Bye bye, toy store! | 再见啦，toy store。 | — |
+| P12 | Can you find the toy store? | 你能找到玩具店吗，toy store？ | 停一下，让孩子先指 |
