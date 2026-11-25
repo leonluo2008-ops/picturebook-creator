@@ -1,7 +1,7 @@
 | 页码 | 英文 | 中文 | 领读 |
 |------|------|------|------|
 | 封面 | Carousel | 旋转木马，Carousel | 可带读 carousel |
-| P1 | Look at the carousel! | 快看，旋转木马来啦，carousel！ | 可带读 carousel |
+| P1 | Look at the carousel! | 快看，旋转木马，carousel！ | 可带读 carousel |
 | P2 | I climb onto the carousel. | 爬上木马准备出发，carousel。 | — |
 | P3 | Hold the carousel bar. | 抱好扶杆坐好啦，carousel。 | 停一下，让孩子先看 |
 | P4 | The carousel is turning. | 慢慢地转起来啦，carousel。 | 可带读 carousel |

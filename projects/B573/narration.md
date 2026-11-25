@@ -1,11 +1,11 @@
-| 页码 | 英文 | 中文 | 领读 |
-|------|------|------|------|
-| 封面 | Zipper | 拉链，Zipper | 可带读 zipper |
-| P1 | Look at the zipper. | 外套的拉链开着，zipper。 | 可带读 zipper |
-| P2 | Hold the zipper tab. | 捏住小拉头，zipper。 | 可带读 zipper |
-| P3 | Pull the zipper up. | 往上一拉，zipper。 | 可带读 zipper |
-| P4 | Zip! It is closed. | 刺啦，拉链合上啦。 | 停一下，让孩子先看或先说 |
-| P5 | I like my zipper. | 我喜欢这个拉链，zipper。 | 可带读 zipper |
-| P6 | Pull the zipper down. | 往下一拉又打开，zipper。 | 可带读 zipper |
-| P7 | Zip it up and go. | 拉好拉链出门喽。 | — |
-| P8 | Where is the zipper? | 哪一个是拉链，zipper？ | 停一下，让孩子先指 |
+| 页码 | 英文 | 中文 |
+| --- | --- | --- |
+| 封面 | Zipper | 拉链，Zipper |
+| P1 | I am ready to go out! | 我准备好出门啦，拉链 zipper 还开着。 |
+| P2 | Pinch the tab. | 捏住拉头，zipper。 |
+| P3 | Pull it up! | 往上一拉，zipper。 |
+| P4 | Zzzip! It is closed. | 刺啦！拉链 zipper 合上啦。 |
+| P5 | I am home now! | 我回家喽，拉链 zipper 还关着。 |
+| P6 | Pull it down. | 往下一拉，zipper。 |
+| P7 | Now it is open. | 拉链 zipper 打开啦，好舒服。 |
+| P8 | Which one is the zipper? | 哪一个是拉链，zipper？ |

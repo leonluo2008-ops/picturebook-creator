@@ -1,11 +1,11 @@
-| 页码 | 英文 | 中文 | 领读 |
-|------|------|------|------|
-| 封面 | Ketchup | 番茄酱，Ketchup | 可带读 ketchup |
-| P1 | Here is the ketchup. | 这是番茄酱，ketchup。 | 可带读 ketchup |
-| P2 | Open the ketchup. | 拧开番茄酱，ketchup。 | 停一下，让孩子先看或先说 |
-| P3 | Squeeze the ketchup. | 挤出番茄酱，ketchup。 | 可带读 ketchup |
-| P4 | Dip it in ketchup. | 蘸一点番茄酱，ketchup。 | — |
-| P5 | Ketchup is sweet and sour. | 番茄酱酸酸甜甜，ketchup。 | 可带读 ketchup |
-| P6 | Share the ketchup. | 分享番茄酱，ketchup。 | — |
-| P7 | We love ketchup. | 我们喜欢番茄酱，ketchup。 | 停一下，让孩子先看或先说 |
-| P8 | Where is the ketchup? | 哪里是番茄酱，ketchup？ | 可带读 ketchup |
+| 页码 | 英文 | 中文 |
+| --- | --- | --- |
+| 封面 | Ketchup | 番茄酱，Ketchup |
+| P1 | Dad takes out the ketchup. | 爸爸拿出番茄酱 ketchup。 |
+| P2 | Twist the cap open! | 拧开盖子，ketchup！ |
+| P3 | Squeeze out the red ketchup. | 挤出红红的番茄酱 ketchup。 |
+| P4 | Here are some French fries. | 准备好金黄的薯条。 |
+| P5 | Dip a fry into the ketchup. | 把薯条蘸进番茄酱 ketchup。 |
+| P6 | It is sweet and sour! | 酸酸甜甜的，真好吃！ |
+| P7 | Have a taste, Dad! | 爸爸也尝一个，ketchup！ |
+| P8 | Which one is the ketchup? | 哪个是番茄酱，ketchup？ |

@@ -1,11 +1,11 @@
-| 页码 | 英文 | 中文 | 领读 |
-|------|------|------|------|
-| 封面 | Fence | 栅栏，Fence | 可带读 fence |
-| P1 | Look at the fence. | 快看这个栅栏，fence。 | 可带读 fence |
-| P2 | Touch the fence. | 摸摸木条，fence。 | — |
-| P3 | Look through the fence. | 透过缝隙看，fence。 | 停一下，让孩子先看或先说 |
-| P4 | Wave at the fence. | 对着栅栏招招手，fence。 | 可带读 fence |
-| P5 | Count the fence. | 一根一根的数，fence。 | — |
-| P6 | Hide behind the fence. | 躲在栅栏后面，fence。 | 停一下，让孩子先看或先说 |
-| P7 | Open the fence gate. | 打开栅栏的小门，fence。 | 可带读 fence |
-| P8 | Which one is the fence? | 哪一个是栅栏，fence？ | 可带读 fence |
+| 页码 | 英文 | 中文 |
+|------|------|------|
+| 封面 | Fence | 栅栏，Fence |
+| P1 | This is my fence. | 这是我的栅栏，fence。 |
+| P2 | I touch the fence. | 我摸摸栅栏，fence。 |
+| P3 | I look through the fence. | 我透过栅栏往外看，fence。 |
+| P4 | Hello, friends! | 隔着栅栏招招手，hello！ |
+| P5 | Count the fence! One, two, three! | 数一数栅栏，一根，两根，三根，fence！ |
+| P6 | Where am I? | 在栅栏后面躲猫猫，fence！ |
+| P7 | The gate is open. | 栅栏的小门打开啦，fence。 |
+| P8 | Which one is the fence? | 哪一个是栅栏，fence？ |
