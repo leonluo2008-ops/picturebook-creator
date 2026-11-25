@@ -5,7 +5,7 @@
 | P2 | Let's go to the post office. | 我们出发去邮局，post office。 | — |
 | P3 | Look at the post office! | 看，那是邮局，post office！ | 可带读 post office |
 | P4 | The post office is busy. | 邮局里很热闹，post office。 | 可带读 post office |
-| P5 | We are at the post office. | 我们在邮局里，post office。 | — |
+| P5 | We are inside now. | 我们进来啦。 | — |
 | P6 | I need a stamp. | 我要买一枚邮票。 | — |
 | P7 | The post office is great. | 邮局真棒，post office。 | 可带读 post office |
 | P8 | Drop it in the mailbox. | 把信投进邮筒里。 | — |
