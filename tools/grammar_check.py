@@ -8,6 +8,10 @@
    - 封面行(书名)整行按展示性文本处理 → 中文列跟随书名里目标词的形态(书名写 Towel, 中文列就写 Towel)
    - 其余(句子夹用, 含 P1 拆解行) → 中文列一律小写(7.1 普通词不承担英文句首大写)
 3. 句尾标点中英对应（. ! ? → 。！？）
+4. 中文列核心词落点（2026-11-25 所有者裁定，rules.md §六）：中文内页旁白里的完整核心词/词组
+   必须放在所在句的句尾或作独立句末认读语；核心词后同句仍接中文句意即违规。
+   直接扫中文列实际用词——英文列没出现核心词的页同样要查。封面行与词族拓展页豁免
+   （封面按标题规范；词族页中文列是「拓展词+释义」串，另有自己的规则）。
 
 用法: python3 grammar_check.py <旁白表.txt> --word floor [--word door]
 输入格式: | 页码 | 英文 | 中文 |
@@ -49,6 +53,12 @@ def en_display_form(en_cell, word, is_cover=False):
             if norm(tok).lower() in word_forms(word):
                 return tok
     return None
+
+
+def _is_wordlist(en):
+    """词族页英文列形态：逗号分隔的纯单词条目（≥2 个），无句子结构。"""
+    tokens = [x.strip() for x in re.sub(r'[.!?。！？]+$', '', en.strip()).split(',')]
+    return len(tokens) >= 2 and all(re.fullmatch(r'[A-Za-z][A-Za-z\-]*', x) for x in tokens if x)
 
 
 def check_rows(rows, words):
@@ -104,6 +114,22 @@ def check_rows(rows, words):
                 if not re.search(_pat, cn.lower()):
                     issues.append(f"[{page}] 英文列含目标词'{w}'但中文列未出现——目标词双语同现缺失(领读核心机制)")
 
+
+        # --- 中文列核心词落点检查(硬闸, 2026-11-25 rules.md §六) ---
+        # 完整核心词/词组必须放所在句句尾或作独立句末认读语;
+        # 核心词后同句仍接中文句意 → 违规。直接扫中文列, 英文列没词也查。
+        # 词族页豁免仅当该页英文列确实是词表（默认页号 P7 可用 --family-page 覆盖;
+        # 非词表的 P7 是普通语境页, 照查）。
+        if not is_cover and not (page == FAMILY_PAGE and _is_wordlist(en)):
+            for w in words:
+                for m in re.finditer(forms_pattern(w), cn.lower()):
+                    tail = cn[m.end():]
+                    endm = re.search(r'[。！？!?]', tail)
+                    seg = tail[:endm.end()] if endm else tail
+                    if re.search(r'[\u4e00-\u9fff]', seg):
+                        issues.append(
+                            f"[{page}] 中文列核心词'{w}'后同句仍接中文句意——完整核心词"
+                            f"必须放句尾或作独立句末认读语(rules.md §六): '…{cn[max(0, m.start()-6):m.end()+8]}…'")
 
         # --- 标点对应 ---
         # 封面行是标题: GB/T 15834-2011 B.4 标题末尾通常不用标点(豁免)。
