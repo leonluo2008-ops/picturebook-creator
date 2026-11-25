@@ -518,14 +518,29 @@ def _combined_title(title: str, title_cn: str) -> str:
     return "\n".join(x for x in (title, title_cn) if x)
 
 
-def backfill_props(page_id: str, title: str, brief: str) -> None:
+def backfill_props(page_id: str, title: str, brief: str) -> list[str]:
+    """写「选定标题」「选定简介」属性并**逐字回读**（v3.1：回读不符返回失败项）。
+
+    title 传入 `_combined_title` 形态（英文\\n中文）；brief 传选定简介全文。
+    """
     props = {}
     if title:
         props["选定标题"] = {"rich_text": rt(title)}
     if brief:
         props["选定简介"] = {"rich_text": rt(brief)}
-    if props:
-        api(f"/v1/pages/{page_id}", "PATCH", {"properties": props})
+    if not props:
+        return []
+    api(f"/v1/pages/{page_id}", "PATCH", {"properties": props})
+    fails = []
+    after = api(f"/v1/pages/{page_id}").get("properties") or {}
+    for name, want in (("选定标题", title), ("选定简介", brief)):
+        if not want:
+            continue
+        got = rich_text_of({"properties": after}, name)
+        if got != want:
+            print(f"  ✗ 属性回读不符：『{name}』期望『{want[:60]}…』实际『{got[:60]}…』", file=sys.stderr)
+            fails.append(f"属性『{name}』回读不符")
+    return fails
 
 
 def advance_status(page_id: str, target: str = "待生图") -> bool:
@@ -554,8 +569,12 @@ def advance_status(page_id: str, target: str = "待生图") -> bool:
         return False
 
 
-def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
-    """回读 markdown 校验，返回缺失项列表（空 = 通过）。"""
+def verify(page_id: str, word: str, narration: list, l4: str,
+           title: str = "", title_cn: str = "", brief: str = "") -> list[str]:
+    """回读 markdown 校验，返回缺失项列表（空 = 通过）。
+
+    v3.1 新增：标题/简介正文段与内容校验 + 标题粘连断言（notion-ops §4 表）。
+    """
     md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
     missing = []
     if "双语旁白" not in md:
@@ -567,6 +586,23 @@ def verify(page_id: str, word: str, narration: list, l4: str) -> list[str]:
     anchors = re.findall(r"场景锚点[:：]\s*([^\n，,]+)", l4)
     if anchors and anchors[-1].strip() not in md:
         missing.append(f"L4 场景锚点『{anchors[-1].strip()}』")
+    # --- 标题/简介正文段校验（2026-11-25 缺档事故：自动批次归档漏传无人发现）---
+    if title:
+        if "选定标题" not in md:
+            missing.append("正文段『选定标题』缺失")
+        elif title not in md.replace("<br />", "\n").replace("<br>", "\n"):
+            missing.append(f"正文缺英文标题『{title}』")
+        if re.search(r"[\u4e00-\u9fff]", title):
+            missing.append(f"英文标题混入中文（粘连/错版）：『{title}』")
+        if re.search(r",\s*" + re.escape(word) + r"\s*$", title, re.I):
+            missing.append(f"英文标题以『, {word}』收尾（粘连形态）：『{title}』")
+    if title_cn and title_cn not in md.replace("<br />", "\n").replace("<br>", "\n"):
+        missing.append(f"正文缺中文标题『{title_cn}』")
+    if brief:
+        if "选定简介" not in md:
+            missing.append("正文段『选定简介』缺失")
+        elif brief not in md:
+            missing.append(f"正文缺选定简介『{brief[:30]}…』")
     # --- 逐页对账（审计 P1-1：只锚首行+末锚点检不出中间页丢失/截断）---
     for label, pat in (("旁白", "旁白[:：]"), ("构图要求", "构图要求[:：]"), ("比例", "比例[:：]")):
         n_src = len(re.findall(pat, l4))
@@ -611,6 +647,10 @@ def main() -> int:
                     help="整段覆盖『备注』（不追加；空串拒绝 EXIT=2）")
     ap.add_argument("--gloss", default=None, metavar="释义",
                     help="写『中文释义』（R13：L1 确认的词典义项，逐字入台账）")
+    ap.add_argument("--allow-no-title", action="store_true",
+                    help="显式放行标题缺失（存量重整个别书正文源就没有标题时用；输出会带 WARN 行）")
+    ap.add_argument("--allow-no-brief", action="store_true",
+                    help="显式放行简介缺失（同上；默认缺标题或简介一律 EXIT=2 拒归档）")
     ap.add_argument("--locate", action="store_true", help="只定位台账行并打印，不写")
     ap.add_argument("--dry-run", action="store_true", help="打印 block 清单，不发写请求")
     args = ap.parse_args()
@@ -627,6 +667,24 @@ def main() -> int:
     l4 = Path(args.l4).read_text(encoding="utf-8") if args.l4 else ""
     if not props_only and not (args.narration and args.l4) and not args.locate:
         raise SystemExit("✗ 归档需要 --narration 和 --l4；只改属性请用 --status/--note/--gloss（不要传 --narration/--l4）")
+    # 写前拦截（2026-11-25 缺档事故）：标题/简介是 L3 必产出，缺任一不许归档；
+    # 存量个别书源稿确实没有时，显式 --allow-no-title / --allow-no-brief 放行。
+    if args.narration and args.l4:  # 完整归档路径
+        gaps = []
+        if not args.title.strip() and not args.allow_no_title:
+            gaps.append("--title（英文标题）")
+        if not args.title_cn.strip() and not args.allow_no_title:
+            gaps.append("--title-cn（中文标题）")
+        if not args.brief.strip() and not args.allow_no_brief:
+            gaps.append("--brief（选定简介）")
+        if gaps:
+            raise SystemExit(
+                "✗ 归档缺少选定值：" + "、".join(gaps) + "\n"
+                "  从已确认稿（projects/<排产号>/title_intro.md 等）提取后传入；\n"
+                "  源稿确实没有时才可用 --allow-no-title / --allow-no-brief 显式放行。"
+            )
+        if args.title and re.search(r"[\u4e00-\u9fff]", args.title):
+            raise SystemExit(f"✗ --title 疑似粘连（含中文）：{args.title!r}\n  英文标题只放英文，中文走 --title-cn。")
     if args.status or props_only:
         opts = status_options(resolve_data_source())
         if args.status and args.status not in opts:
@@ -757,17 +815,24 @@ def main() -> int:
     n = append_blocks(page_id, blocks)
     print(f"✓ 已写入 {n} 个 block")
 
-    # 3) 可选属性回填
+    # 3) 可选属性回填（写入后逐字回读，不符计入失败）
+    attr_fails = []
     if args.attr_title or args.attr_brief:
-        backfill_props(page_id,
+        attr_fails = backfill_props(page_id,
                        _combined_title(args.title, args.title_cn) if args.attr_title else "",
                        args.brief if args.attr_brief else "")
-        print("✓ 属性回填完成")
+        if attr_fails:
+            print("✗ 属性回填失败项：" + "、".join(attr_fails))
+        else:
+            print("✓ 属性回填完成（回读逐字一致）")
 
-    # 4) 回读校验
-    missing = verify(page_id, args.word, narration, l4)
+    # 4) 回读校验（含标题/简介正文段与粘连断言）
+    missing = verify(page_id, args.word, narration, l4,
+                     title=args.title, title_cn=args.title_cn, brief=args.brief)
     if missing:
         print("✗ 回读校验未通过，缺失：" + "、".join(missing))
+        return 1
+    if attr_fails:
         return 1
     print(f"✓ 回读校验通过 —— 已归档 Notion（{sched_no}）")
     # C1: 状态推进并进脚本；显式 --status 优先（W10.1：状态写失败必须非零退出）

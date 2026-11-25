@@ -158,6 +158,7 @@ def main() -> int:
     ap.add_argument("--page-id", help="直接指定台账行 page_id(优先于 --word)")
     ap.add_argument("--pages", type=int, default=9, help="页数(含封面),默认 9")
     ap.add_argument("--set-word-type", dest="word_type", help="把「词型」改成该值后再校验")
+    ap.add_argument("--expect-state", default="待生图", help="期望状态（默认待生图；改写模式传「修改中」）")
     args = ap.parse_args()
 
     if not args.page_id and not args.word:
@@ -190,7 +191,7 @@ def main() -> int:
     framed = sum(len(re.findall(r"构图要求[:：][ \t]*[^\s。；，]", prompt)) == 1 for prompt in prompts)
 
     checks = [
-        ("状态=待生图", state == "待生图", f"实际 {state!r}"),
+        ("状态=" + args.expect_state, state == args.expect_state, f"实际 {state!r}"),
         ("创作产出 heading", cnt("创作产出") == 1, f"实际 {cnt('创作产出')}"),
         ("双语旁白 heading", cnt("### 双语旁白") == 1, f"实际 {cnt('### 双语旁白')}"),
         ("L4 heading", cnt("### L4 生图提示词") == 1, f"实际 {cnt('### L4 生图提示词')}"),
@@ -201,6 +202,26 @@ def main() -> int:
         ("每页一条构图要求", len(prompts) == framed == pages, f"合格 {framed} / 提示词 {len(prompts)} / 期望 {pages}"),
         ("围栏 = 2(整篇一个代码块)", cnt(FENCE) == 2, f"实际 {cnt(FENCE)}"),
     ]
+
+    # ── 标题/简介校验（2026-11-25 缺档事故补）──
+    md_norm = md.replace("<br />", "\n").replace("<br>", "\n")
+    title_segs = re.findall(r"(?m)^英文标题[:：]\s*(.+)$", md_norm)
+    brief_segs = re.findall(r"(?m)^选定简介[:：]\s*(.+)$", md_norm)
+    title_attrs = plain(props.get("选定标题", {}))
+    brief_attrs = plain(props.get("选定简介", {}))
+    title_ok = bool(title_segs)
+    title_clean = title_ok and not re.search(r"[\u4e00-\u9fff]", title_segs[0]) \
+        and not re.search(r",\s*" + re.escape(word) + r"\s*$", title_segs[0], re.I)
+    checks.append(("标题段存在", title_ok, f"实际 {len(title_segs)} 处"))
+    checks.append(("标题无粘连/错版", title_clean,
+                   f"英文标题行 {title_segs[0]!r}" if title_segs else "无标题段"))
+    checks.append(("简介段存在且非空", bool(brief_segs and brief_segs[0].strip()),
+                   f"实际 {len(brief_segs)} 处"))
+    # 属性列缺失只警告不计失败（规范：属性回填默认关闭；正文是必备落点）
+    if not title_attrs.strip():
+        print(f"  ⚠ 属性『选定标题』为空（正文段 {'有' if title_ok else '缺失'}）——建议从确认稿回填")
+    if not brief_attrs.strip():
+        print(f"  ⚠ 属性『选定简介』为空（正文段 {'有' if brief_segs else '缺失'}）——建议从确认稿回填")
 
     bad = 0
     for name, ok, detail in checks:
