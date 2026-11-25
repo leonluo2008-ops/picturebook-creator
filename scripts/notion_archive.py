@@ -603,6 +603,9 @@ def verify(page_id: str, word: str, narration: list, l4: str,
             missing.append("正文段『选定简介』缺失")
         elif brief not in md:
             missing.append(f"正文缺选定简介『{brief[:30]}…』")
+    # --- L4 code 块存在性（空代码块假绿防线）---
+    if l4.strip() and md.count("```") < 2:
+        missing.append("L4 代码块缺失/为空（围栏数 <2）")
     # --- 逐页对账（审计 P1-1：只锚首行+末锚点检不出中间页丢失/截断）---
     for label, pat in (("旁白", "旁白[:：]"), ("构图要求", "构图要求[:：]"), ("比例", "比例[:：]")):
         n_src = len(re.findall(pat, l4))
@@ -619,10 +622,73 @@ def verify(page_id: str, word: str, narration: list, l4: str,
     return missing
 
 
+def archive_heading_id(page_id: str) -> str | None:
+    """找「📚 创作产出」heading_2 的块 id（--patch 插入锚点）。"""
+    cursor = None
+    while True:
+        q = f"/v1/blocks/{page_id}/children?page_size=100" + (f"&start_cursor={cursor}" if cursor else "")
+        r = api(q)
+        for b in r.get("results") or []:
+            if b.get("type") == "heading_2" and "创作产出" in "".join(
+                    x.get("plain_text", "") for x in (b.get("heading_2", {}).get("rich_text") or [])):
+                return b["id"]
+        if not r.get("has_more"):
+            return None
+        cursor = r.get("next_cursor")
+
+
+def patch_title_brief(page_id: str, title: str, title_cn: str, brief: str,
+                      attr_title: bool, attr_brief: bool) -> list[str]:
+    """轻量补档（v3.2）：正文缺标题/简介段时，在「创作产出」heading 后插入两段；属性按需回填。
+
+    幂等：正文已有对应段则跳过插入（只补属性）。返回失败项列表。
+    """
+    fails: list[str] = []
+    md = api(f"/v1/pages/{page_id}/markdown").get("markdown", "")
+    need_blocks = []
+    if title or title_cn:
+        if "选定标题" not in md:
+            lines = ["选定标题："]
+            if title:
+                lines.append("英文标题：" + title)
+            if title_cn:
+                lines.append("中文标题：" + title_cn)
+            need_blocks.append({"type": "paragraph",
+                                "paragraph": {"rich_text": rt("\n".join(lines))}})
+    if brief and "选定简介" not in md:
+        need_blocks.append({"type": "paragraph",
+                            "paragraph": {"rich_text": rt("选定简介：" + brief)}})
+    if need_blocks:
+        anchor = archive_heading_id(page_id)
+        if not anchor:
+            raise SystemExit("✗ 页面没有「创作产出」heading，--patch 无插入锚点（页面可能未归档，走完整归档）")
+        body: dict = {"children": need_blocks}
+        # after 参数把新块插到 heading 之后（标题段必须是产出段第一块）
+        api(f"/v1/blocks/{page_id}/children", "PATCH", dict(body, **{"after": anchor}))
+        print(f"✓ 已插入 {len(need_blocks)} 个补档段（创作产出 heading 之后）")
+    else:
+        print("· 正文标题/简介段已在，跳过插入")
+    if attr_title or attr_brief:
+        fails = backfill_props(page_id,
+                               _combined_title(title, title_cn) if attr_title else "",
+                               brief if attr_brief else "")
+    # 回读：正文段 + 粘连断言（与完整归档同口径）
+    md2 = api(f"/v1/pages/{page_id}/markdown").get("markdown", "").replace("<br />", "\n").replace("<br>", "\n")
+    if title and title not in md2:
+        fails.append("回读缺英文标题")
+    if title_cn and title_cn not in md2:
+        fails.append("回读缺中文标题")
+    if brief and ("选定简介" not in md2 or brief not in md2):
+        fails.append("回读缺选定简介")
+    if title and re.search(r"[\u4e00-\u9fff]", title):
+        fails.append("英文标题混中文（粘连）")
+    return fails
+
+
 # ─────────────────────────────── main ────────────────────────────
 def main() -> int:
     ap = argparse.ArgumentParser(description="picturebook-creator L5：Notion 排产台账归档")
-    ap.add_argument("--word", required=True, help="核心词，用于在台账『核心词』列精确匹配")
+    ap.add_argument("--word", default="", help="核心词，用于在台账『核心词』列精确匹配（与 --page-id 二选一）")
     ap.add_argument("--title", default="", help="英文标题（选定标题段第一行）")
     ap.add_argument("--title-cn", default="", dest="title_cn",
                     help="中文标题（选定标题段第二行；生图只提取**英文**标题做封面主文字，中文标题只留台账档案）")
@@ -651,6 +717,8 @@ def main() -> int:
                     help="显式放行标题缺失（存量重整个别书正文源就没有标题时用；输出会带 WARN 行）")
     ap.add_argument("--allow-no-brief", action="store_true",
                     help="显式放行简介缺失（同上；默认缺标题或简介一律 EXIT=2 拒归档）")
+    ap.add_argument("--patch", action="store_true",
+                    help="轻量补档：正文缺标题/简介段时插入到「创作产出」heading 后 + 属性回填 + 回读（不重写全本；需 --title/--title-cn/--brief）")
     ap.add_argument("--locate", action="store_true", help="只定位台账行并打印，不写")
     ap.add_argument("--dry-run", action="store_true", help="打印 block 清单，不发写请求")
     args = ap.parse_args()
@@ -658,18 +726,24 @@ def main() -> int:
     date = args.date or __import__("datetime").date.today().isoformat()
 
     # 0) 预检全部前置（审计 B/I3：任何网络写之前先把参数与文件验完）
+    if not args.word.strip() and not args.page_id:
+        raise SystemExit("✗ 需要 --word 或 --page-id 之一（--page-id 优先）")
     if args.rewrite and args.force:
         raise SystemExit("✗ --rewrite 与 --force 互斥：--rewrite 是清场重写，--force 是追加")
     if args.note is not None and not args.note.strip():
         raise SystemExit("✗ --note 传了空串：备注要么不传（不动），要么给整段覆盖文本")
-    props_only = (args.status or args.note is not None or args.gloss) and not (args.narration and args.l4)
+    props_only = (args.status or args.note is not None or args.gloss) and not (args.narration and args.l4) and not args.patch
     narration = parse_narration(args.narration) if args.narration else []
     l4 = Path(args.l4).read_text(encoding="utf-8") if args.l4 else ""
-    if not props_only and not (args.narration and args.l4) and not args.locate:
+    if l4 and not l4.strip():
+        l4 = ""
+    if args.narration and args.l4 and not l4.strip() and not args.dry_run:
+        raise SystemExit(f"✗ --l4 文件 {args.l4} 内容为空（2026-11-25 实证：空 L4 会归档出空代码块且旧 verify 假绿）——检查源文件")
+    if not props_only and not (args.narration and args.l4) and not args.locate and not args.patch:
         raise SystemExit("✗ 归档需要 --narration 和 --l4；只改属性请用 --status/--note/--gloss（不要传 --narration/--l4）")
     # 写前拦截（2026-11-25 缺档事故）：标题/简介是 L3 必产出，缺任一不许归档；
     # 存量个别书源稿确实没有时，显式 --allow-no-title / --allow-no-brief 放行。
-    if args.narration and args.l4:  # 完整归档路径
+    if (args.narration and args.l4) or args.patch:  # 完整归档 / 补档路径
         gaps = []
         if not args.title.strip() and not args.allow_no_title:
             gaps.append("--title（英文标题）")
@@ -689,6 +763,33 @@ def main() -> int:
         opts = status_options(resolve_data_source())
         if args.status and args.status not in opts:
             raise SystemExit(f"✗ --status『{args.status}』不在台账状态列 options 里：{' / '.join(opts)}")
+
+    # ── patch 模式：轻量补档标题/简介段 + 属性回填 + 回读 ──
+    if args.patch:
+        ds_id = resolve_data_source()
+        if args.page_id:
+            page_id, sched_no = args.page_id, "(--page-id 指定)"
+        else:
+            rows = query_rows(ds_id, args.word)
+            if len(rows) > 1:
+                nums = [rich_text_of(r, "排产号") or r["id"] for r in rows]
+                raise SystemExit(f"✗ 「核心词 = {args.word}」命中多行：{nums}。请用 --page-id 明确指定。")
+            if not rows:
+                raise SystemExit("✗ --patch 要求行已存在（不自动建行）")
+            page_id, sched_no = rows[0]["id"], rich_text_of(rows[0], "排产号")
+        print(f"✓ 台账行：{sched_no}  page_id={page_id}")
+        if args.dry_run:
+            print(f"[dry-run] 计划补档：标题『{args.title} / {args.title_cn}』简介『{args.brief[:30]}…』"
+                  f"{'（正文段已在则只补属性）' if '选定标题' in api(f'/v1/pages/{page_id}/markdown').get('markdown','') else ''}；"
+                  f"属性回填 {'是' if (args.attr_title or args.attr_brief) else '否'}（本次未写入）")
+            return 0
+        fails = patch_title_brief(page_id, args.title, args.title_cn, args.brief,
+                                  args.attr_title, args.attr_brief)
+        if fails:
+            print("✗ 补档校验未通过：" + "、".join(fails))
+            return 1
+        print(f"✓ 补档完成并回读一致 —— {sched_no}")
+        return 0
 
     # ── props-only 模式：只动状态/备注/释义，不碰正文 ──
     if props_only:

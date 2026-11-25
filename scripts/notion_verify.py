@@ -159,6 +159,8 @@ def main() -> int:
     ap.add_argument("--pages", type=int, default=9, help="页数(含封面),默认 9")
     ap.add_argument("--set-word-type", dest="word_type", help="把「词型」改成该值后再校验")
     ap.add_argument("--expect-state", default="待生图", help="期望状态（默认待生图；改写模式传「修改中」）")
+    ap.add_argument("--any-active-state", action="store_true",
+                    help="待生图/修改中/待审查 任一即算过（批量核验用；显式 --expect-state 优先）")
     args = ap.parse_args()
 
     if not args.page_id and not args.word:
@@ -190,8 +192,11 @@ def main() -> int:
     )
     framed = sum(len(re.findall(r"构图要求[:：][ \t]*[^\s。；，]", prompt)) == 1 for prompt in prompts)
 
+    state_ok = (state == args.expect_state) if not args.any_active_state \
+        else state in ("待生图", "修改中", "待审查")
     checks = [
-        ("状态=" + args.expect_state, state == args.expect_state, f"实际 {state!r}"),
+        ("状态合法停留态" if args.any_active_state else "状态=" + args.expect_state,
+         state_ok, f"实际 {state!r}"),
         ("创作产出 heading", cnt("创作产出") == 1, f"实际 {cnt('创作产出')}"),
         ("双语旁白 heading", cnt("### 双语旁白") == 1, f"实际 {cnt('### 双语旁白')}"),
         ("L4 heading", cnt("### L4 生图提示词") == 1, f"实际 {cnt('### L4 生图提示词')}"),
@@ -228,6 +233,43 @@ def main() -> int:
         print(f"  {'✓' if ok else '✗'} {name}" + ("" if ok else f"  —— {detail}"))
         if not ok:
             bad += 1
+
+    if bad:
+        # 写后读延迟防线：Notion markdown 导出有最终一致性窗口（2026-11-25 实证：
+        # rewrite 后立即回读会拿到旧内容造成假 FAIL）——延迟 8s 重读一次，两次同败才算败。
+        import time as _t
+        _t.sleep(8)
+        md2 = api(f"/v1/pages/{page_id}/markdown").get("markdown", "") or ""
+        if md2 != md:
+            print("  ↻ 首次回读与复读不一致（导出延迟），以复读结果重判")
+            md = md2
+            prompts = re.findall(r"(?m)^生图提示词[:：][^\r\n]+", md)
+            anchored = sum(
+                len(re.findall(r"场景(?:锚点|一致性)[:：][ \t]*[^\s。；，]", prompt)) == 1
+                for prompt in prompts
+            )
+            framed = sum(len(re.findall(r"构图要求[:：][ \t]*[^\s。；，]", prompt)) == 1 for prompt in prompts)
+            cnt = md.count
+            state = plain(api(f"/v1/pages/{page_id}").get("properties", {}).get("状态", {}))
+            checks[1] = ("创作产出 heading", cnt("创作产出") == 1, f"实际 {cnt('创作产出')}")
+            checks[2] = ("双语旁白 heading", cnt("### 双语旁白") == 1, f"实际 {cnt('### 双语旁白')}")
+            checks[3] = ("L4 heading", cnt("### L4 生图提示词") == 1, f"实际 {cnt('### L4 生图提示词')}")
+            checks[4] = ("旁白表 <tr> = 页数+1", cnt("<tr") == pages + 1, f"实际 {cnt('<tr')} / 期望 {pages + 1}")
+            checks[5] = ("比例 3:4 = 1", cnt("比例: 3:4") == 1, f"实际 {cnt('比例: 3:4')}")
+            checks[6] = ("比例 16:9 = 内页数", cnt("比例: 16:9") == pages - 1, f"实际 {cnt('比例: 16:9')} / 期望 {pages - 1}")
+            checks[7] = ("每页一个场景标签", len(prompts) == anchored == pages, f"合格 {anchored} / 提示词 {len(prompts)} / 期望 {pages}")
+            checks[8] = ("每页一条构图要求", len(prompts) == framed == pages, f"合格 {framed} / 提示词 {len(prompts)} / 期望 {pages}")
+            checks[9] = ("围栏 = 2(整篇一个代码块)", cnt(FENCE) == 2, f"实际 {cnt(FENCE)}")
+            md_norm = md.replace("<br />", "\n").replace("<br>", "\n")
+            title_segs = re.findall(r"(?m)^英文标题[:：]\s*(.+)$", md_norm)
+            brief_segs = re.findall(r"(?m)^选定简介[:：]\s*(.+)$", md_norm)
+            checks[10] = ("标题段存在", bool(title_segs), f"实际 {len(title_segs)} 处")
+            checks[11] = ("标题无粘连/错版", bool(title_segs) and not re.search(r"[\u4e00-\u9fff]", title_segs[0])
+                          and not re.search(r",\s*" + re.escape(word) + r"\s*$", title_segs[0], re.I),
+                          f"英文标题行 {title_segs[0]!r}" if title_segs else "无标题段")
+            checks[12] = ("简介段存在且非空", bool(brief_segs and brief_segs[0].strip()),
+                          f"实际 {len(brief_segs)} 处")
+            bad = sum(1 for _, ok, _ in checks if not ok)
 
     if bad:
         print(f"\n✗ {bad} 项不符 —— 先归一化渲染工件(<br>、转义引号、<br/>)再下结论,别急着重写正文")

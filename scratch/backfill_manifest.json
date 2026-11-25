@@ -1,0 +1,346 @@
+{
+ "B572": {
+  "file": "projects/B572/title_intro_v2.md",
+  "title_en": "Pajamas",
+  "title_cn": "睡衣，Pajamas",
+  "brief": "脱下白天的衣服，换上圆点睡衣。软软的，真舒服，pajamas！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B573": {
+  "file": "projects/B573/title_intro.md",
+  "title_en": "Zipper",
+  "title_cn": "拉链，Zipper",
+  "brief": "捏住小拉头，往上一拉，刺啦合上。拉链，zipper！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B574": {
+  "file": "projects/B574/title_intro.md",
+  "title_en": "Glasses",
+  "title_cn": "眼镜，Glasses",
+  "brief": "爷爷眯起眼，看不清报纸。戴上眼镜，看清啦，glasses！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B627": {
+  "file": "projects/B627/title_intro.md",
+  "title_en": "Chopsticks",
+  "title_cn": "筷子，Chopsticks",
+  "brief": "捏住两根，对齐，夹起丸子。筷子，chopsticks！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B668": {
+  "file": "projects/B668/title_intro.md",
+  "title_en": "Belt",
+  "title_cn": "腰带，Belt",
+  "brief": "裤子松松的要掉啦，系上腰带就不怕。腰带，belt！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B669": {
+  "file": "projects/B669/title_intro.md",
+  "title_en": "Sleeve",
+  "title_cn": "袖子，Sleeve",
+  "brief": "胳膊钻进去，手掌钻出来。暖暖的袖子，sleeve！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B670": {
+  "file": "projects/B670/title_intro.md",
+  "title_en": "Collar",
+  "title_cn": "衣领，Collar",
+  "brief": "头钻出来，领子围在脖子上。竖起来，暖暖的。衣领，collar！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B671": {
+  "file": "projects/B671/title_intro.md",
+  "title_en": "Ribbon",
+  "title_cn": "丝带，Ribbon",
+  "brief": "系在礼物上，扎在头发上，还能绑在花束上。软软的丝带，ribbon！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B672": {
+  "file": "projects/B672/title_intro.md",
+  "title_en": "Hairpin",
+  "title_cn": "发夹，Hairpin",
+  "brief": "刘海遮住眼睛怎么办？咔哒，别到一边。发夹，hairpin！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B673": {
+  "file": "projects/B673/title_intro.md",
+  "title_en": "Hairband",
+  "title_cn": "发箍，Hairband",
+  "brief": "双手一套，戴在头顶。粉粉的发箍，hairband！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B674": {
+  "file": "projects/B674/title_intro.md",
+  "title_en": "Fence",
+  "title_cn": "栅栏，Fence",
+  "brief": "用脸贴近缝隙，偷偷看外面的朋友。好有趣的栅栏，fence！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B675": {
+  "file": "projects/B675/title_intro.md",
+  "title_en": "Tent",
+  "title_cn": "帐篷，Tent",
+  "brief": "铺开布，撑起杆，变出一座尖顶房。钻进帐篷，tent！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B676": {
+  "file": "projects/B676/title_intro.md",
+  "title_en": "Ladder",
+  "title_cn": "梯子，Ladder",
+  "brief": "想摘高处的果子？踩着梯子一级一级爬。梯子，ladder！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B677": {
+  "file": "projects/B677/title_intro.md",
+  "title_en": "Hair Dryer",
+  "title_cn": "吹风机，Hair Dryer",
+  "brief": "洗完头，按一下开关，吹风机吹出暖暖的风，hair dryer！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B678": {
+  "file": "projects/B678/title_intro.md",
+  "title_en": "Remote Control",
+  "title_cn": "遥控器，Remote Control",
+  "brief": "对准电视，按一按，画面就变啦。神奇的遥控器，remote control！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B679": {
+  "file": "projects/B679/title_intro.md",
+  "title_en": "Rice Cooker",
+  "title_cn": "电饭煲，Rice Cooker",
+  "brief": "按一下按钮，冒一会儿热气，香喷喷的白米饭好啦。电饭煲，rice cooker！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B680": {
+  "file": "projects/B680/title_intro.md",
+  "title_en": "Lunchbox",
+  "title_cn": "饭盒，Lunchbox",
+  "brief": "咔哒！盖子关好啦。我们要拎着饭盒去公园喽，饭盒，lunchbox！",
+  "n_candidates": 1,
+  "pref": null
+ },
+ "B681": {
+  "file": "projects/B681/title_intro.md",
+  "title_en": "Handkerchief",
+  "title_cn": "手帕，Handkerchief",
+  "brief": "出汗了擦一擦，打喷嚏捂一捂。朋友哭了递过去，手帕，handkerchief！",
+  "n_candidates": 1,
+  "pref": null
+ },
+ "B682": {
+  "file": "projects/B682/title_intro.md",
+  "title_en": "Sunscreen",
+  "title_cn": "防晒霜，Sunscreen",
+  "brief": "太阳太晒啦，快来涂涂鼻子。它还会做什么呢？防晒霜，sunscreen！",
+  "n_candidates": 1,
+  "pref": null
+ },
+ "B683": {
+  "file": "projects/B683/title_intro.md",
+  "title_en": "Pancake",
+  "title_cn": "松饼，Pancake",
+  "brief": "咕嘟咕嘟，面糊冒泡泡啦！翻面，煎成金黄的圆饼，这是松饼，pancake！",
+  "n_candidates": 1,
+  "pref": null
+ },
+ "B684": {
+  "file": "projects/B684/title_intro.md",
+  "title_en": "Pudding",
+  "title_cn": "布丁，Pudding",
+  "brief": "端出来，摇摇晃晃，颤颤的，快来看看这个布丁，pudding！",
+  "n_candidates": 1,
+  "pref": null
+ },
+ "B685": {
+  "file": "projects/B685/title_intro.md",
+  "title_en": "Spring Roll",
+  "title_cn": "春卷，Spring Roll",
+  "brief": "咬一口，咔嚓响，脆脆的。快来看看这个春卷，spring roll！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B686": {
+  "file": "projects/B686/title_intro.md",
+  "title_en": "Meatball",
+  "title_cn": "丸子，Meatball",
+  "brief": "锅里冒泡泡，丸子浮起来啦。快来看看，meatball！",
+  "n_candidates": 3,
+  "pref": 2
+ },
+ "B687": {
+  "file": "projects/B687/title_intro.md",
+  "title_en": "Soy Milk",
+  "title_cn": "豆浆，Soy Milk",
+  "brief": "闻起来香喷喷，喝起来滑滑的。早上的杯子里冒着热气，豆浆，soy milk！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B688": {
+  "file": "projects/B688/title_intro.md",
+  "title_en": "Donut",
+  "title_cn": "甜甜圈，Donut",
+  "brief": "把面团压出个圆洞，烤得金灿灿。快来看看这个甜甜圈，donut！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B689": {
+  "file": "projects/B689/title_intro_v2.md",
+  "title_en": "Post Office",
+  "title_cn": "邮局，Post Office",
+  "brief": "跟着小象艾力去寄信。把信投进绿色的邮筒。邮局，post office！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B690": {
+  "file": "projects/B690/title_intro.md",
+  "title_en": "Fire Station",
+  "title_cn": "消防站，Fire Station",
+  "brief": "大红门开了，里面停着亮闪闪的红色消防车。快进来看看消防站，fire station！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B691": {
+  "file": "projects/B691/title_intro_v2.md",
+  "title_en": "Police Station",
+  "title_cn": "警察局，Police Station",
+  "brief": "罗比丢了心爱的小球。警察局帮他找到啦，police station！",
+  "n_candidates": 3,
+  "pref": null
+ },
+ "B692": {
+  "file": "projects/B692/title_intro_v2.md",
+  "title_en": "Flower Shop",
+  "title_cn": "花店，Flower Shop",
+  "brief": "小猫米娅去花店买花送妈妈。flower shop！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B693": {
+  "file": "projects/B693/title_intro_v2.md",
+  "title_en": "Toy Store",
+  "title_cn": "玩具店，Toy Store",
+  "brief": "小狗波比去玩具店找玩具。toy store！",
+  "n_candidates": 3,
+  "pref": null
+ },
+ "B694": {
+  "file": "projects/B694/title_intro.md",
+  "title_en": "Frisbee",
+  "title_cn": "飞盘，Frisbee",
+  "brief": "扁扁圆圆的，飞在半空中。快看谁接住了，飞盘，frisbee！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B695": {
+  "file": "projects/B695/title_intro.md",
+  "title_en": "Carousel",
+  "title_cn": "旋转木马，Carousel",
+  "brief": "抱好扶杆，转起圈圈，上下起伏。快来坐旋转木马，carousel！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B696": {
+  "file": "projects/B696/title_intro.md",
+  "title_en": "Jump Rope",
+  "title_cn": "跳绳，Jump Rope",
+  "brief": "摇一摇，跳过去。好玩的跳绳，jump rope！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B698": {
+  "file": "projects/B698/title_intro_v2.md",
+  "title_en": "Braid",
+  "title_cn": "辫子，Braid",
+  "brief": "梳顺头发，分成三股。编出一条辫子，braid！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B699": {
+  "file": "projects/B699/title_intro.md",
+  "title_en": "Croissant",
+  "title_cn": "牛角包，Croissant",
+  "brief": "弯弯的，像月亮。咬一口，酥皮掉渣渣。牛角包，croissant！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B700": {
+  "file": "projects/B700/title_intro.md",
+  "title_en": "Peanut Butter",
+  "title_cn": "花生酱，Peanut Butter",
+  "brief": "分给朋友一块三明治，香香的。你想要一点吗？花生酱，peanut butter！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B701": {
+  "file": "projects/B701/title_intro.md",
+  "title_en": "Ketchup",
+  "title_cn": "番茄酱，Ketchup",
+  "brief": "拧开盖子，挤出红红的酱。蘸着薯条吃，番茄酱，ketchup！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B702": {
+  "file": "projects/B702/title_intro.md",
+  "title_en": "Morning Glory",
+  "title_cn": "牵牛花，Morning Glory",
+  "brief": "紫紫的，像个喇叭。太阳升高就合拢啦。牵牛花，morning glory！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B703": {
+  "file": "projects/B703/title_intro_v2.md",
+  "title_en": "Clownfish",
+  "title_cn": "小丑鱼，Clownfish",
+  "brief": "橙橙的身体，白白的一条条。小丑鱼钻进海葵里啦，clownfish！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B704": {
+  "file": "projects/B704/title_intro.md",
+  "title_en": "Tissue Box",
+  "title_cn": "纸巾盒，Tissue Box",
+  "brief": "捏住白白的一条，轻轻往上抽。咦，怎么又冒出一个新角？纸巾盒，tissue box！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B705": {
+  "file": "projects/B705/title_intro.md",
+  "title_en": "Dish Soap",
+  "title_cn": "洗洁精，Dish Soap",
+  "brief": "按一下，搓一搓，泡泡飞起来啦。洗洁精把碗洗得亮晶晶，dish soap！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B706": {
+  "file": "projects/B706/title_intro.md",
+  "title_en": "Watering Can",
+  "title_cn": "洒水壶，Watering Can",
+  "brief": "把壶身往前倾一倾，洒出细细的雨。花朵喝饱了，抬头笑起来。洒水壶，watering can！",
+  "n_candidates": 3,
+  "pref": 1
+ },
+ "B707": {
+  "file": "projects/B707/title_intro.md",
+  "title_en": "Treehouse",
+  "title_cn": "树屋，Treehouse",
+  "brief": "从高高的窗户往外看，花园变小啦。树屋，treehouse！",
+  "n_candidates": 3,
+  "pref": 3
+ }
+}
