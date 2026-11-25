@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1 | `tools/grammar_check.py` | 旁白表：中英大小写、标点、**目标词双语同现** | 0 过 / 1 违规（**读不到文件也是 1**）/ 2 解析到 0 行或参数错 |
 | 2 | `tools/l4_case_check.py` | L4 画面词形态 + 旁白行双语 | 0 过 / 1 违规（**读不到文件、解析到 0 页也是 1**）/ 2 仅 argparse 参数错 |
-| 3 | `scripts/l4_presence_check.py` | L4：逐页**在不在**（场景段是否出现目标词）；2026-11-23 起默认按需模式 | 0 过 / 1 违规（仅 `--require-all` 或 `--min-pages` 触发）/ 2 参数错（**读不到文件也是 2**）|
+| 3 | `scripts/l4_presence_check.py` | L4：逐页**在不在**。**正式口径 `--from-plan`（2026-11-25）**：逐页取 L4「入画英文:」声明核对，声明词/词组不在场景段→EXIT=1，`入画英文: []`→按需省略；`--word` 支持词组整体匹配。旧口径：按需模式（缺页只提示）/ `--require-all` / `--min-pages` | 0 过 / 1 违规（`--from-plan` 声明缺词、`--require-all` 或 `--min-pages` 触发）/ 2 参数错（**读不到文件也是 2**）|
 | 自检 A | `scripts/l4_structure_check.py` | L4 结构：块存在性、词数、构图三要素、比例、页型、`Pn` 前缀、内页数、目标词次数、中文句长 | 0 / 1 / 2（读不到文件、第 0 页不是封面 → 2）|
 | **L3 出口** | `tools/title_intro_check.py --gloss <释义> --pos <词型>` | 标题七判据（E1–E5 + G1/G2/P1）+ 简介可机判项 | 0 / 1 / 2（读不到文件、标题或简介任一侧 0 条 → 2）|
 
@@ -52,10 +52,16 @@ python tools/l4_case_check.py <L4文件.txt> --word floor --word door   # 词族
 ### 第 3 道：L4 逐页「在不在」
 
 ```bash
+# 正式入口（2026-11-25 所有者裁定）：声明模式——逐页取 L4 自己的「入画英文:」核对
+python scripts/l4_presence_check.py <L4文件.txt> --from-plan --expect-pages <页数>
+
+# 旧口径备查
 python scripts/l4_presence_check.py <L4文件.txt> --word <核心词> --expect-pages <页数> [--require-all] [--min-pages N]
 python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 --page-words 7=hot,dot,cot
 ```
 
+- **`--from-plan` 声明模式（正式口径）**：每页的期望词取自该页 L4 的 `入画英文:` 行（支持 `["Post Office"]`、`post office`、逗号/顿号分隔多种写法）。声明了词/词组而场景段没有 → **EXIT=1**；`入画英文: []` → 按需省略，不判错（打印「按需省略 N 页」）。这把「旁白/L3 决定哪页用词、L4 必须兑现」变成机器断言——声明了却不画等于教学载体丢失。
+- **词组支持**：`--word "post office"` 与声明里的词组按**整体**匹配——词间容空格/连字符、末词容复数 s；`toy`、`store` 单独出现不算命中，乱序不算。
 - **默认按需模式（2026-11-23 所有者改口径）**：目标词按旁白需要出现、不强制每页；缺页只打印提示行（「本页无目标词（按需模式下不构成错误）」），**EXIT=0**。`--require-all` 恢复旧严格口径（每页必须出现，缺一页 EXIT=1）；`--min-pages N` 要求至少 N 页出现，否则 EXIT=1。
 
 - **`--expect-pages` 必须传**（含封面）：不传时只校验「解析到的页」，遇到 `- 旁白:`、`**旁白:**` 这类非标准写法会**静默丢页**仍报全过（v2.0 已全量剥离 `\ufeff`，BOM 不再丢页；但 **`l4_case_check` 不剥 BOM**，中段 `\ufeff` 会让它少解析一页却仍报「全过」——第 2 道没有页数断言，页数要人工核）。领读默认 9 页＝封面 + 8 内页，页数不同按实际传。
@@ -71,6 +77,7 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 | `--word` | **五道都要**（`title_intro_check` 的 `--word` 只在 `--file` 模式必填） | `grammar_check` / `l4_case_check` / `l4_presence_check` 可重复传（`action=append`）；**自检 `l4_structure_check.py` 只接受一个** `--word`，重复传静默取最后一个 |
 | `--expect-pages` | 门禁只要求 **presence**；`l4_structure_check.py` 也有（自检用） | grammar / l4_case 没有这个参数，传了 argparse 直接 exit 2 |
 | `--page-words` | **只属 presence** | 格式 `页码=词1,词2` |
+| `--from-plan` | **只属 presence（正式入口）** | 声明模式：逐页按 L4「入画英文:」核对；该模式下 `--word` 可省略 |
 | `--require-all` | **只属 presence** | 恢复旧严格口径：每页必须出现，缺一页 EXIT=1 |
 | `--min-pages N` | **只属 presence** | 要求至少 N 页出现，否则 EXIT=1（默认 0＝不设下限） |
 | `--require-all-pages` | **只属自检 `l4_structure_check.py`** | 恢复旧判据：每页提示词都必须出现目标词（给 2026-11-23 前旧书复核用）；默认判据跟随每页 `入画英文`——空数组页不校验 |
@@ -78,7 +85,7 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 | `--family-page` | 只属 grammar_check | 词族页页号，默认 `P7` |
 | `--max-words` | 只属 structure | 默认 10；只允许 ≤10，超出会被 clamp 并告警 |
 
-- **伙伴词只能重复写 `--word`**：写成空格分隔报 `unrecognized arguments`。写成逗号串 `--word glue,blue` 的结果**按工具分**：`grammar_check` / `l4_case_check` 把它当成一个词、**照样 EXIT=0**（机审扫不到任何东西，零校验）；`l4_presence_check` 有 `WORD_OK` 单词语法校验，直接 **exit 2**；`l4_structure_check` 也把它当一个词，会按「目标词全书」大面积判红（**exit 1**），别拿它当参数验证。
+- **伙伴词只能重复写 `--word`**：写成空格分隔报 `unrecognized arguments`。写成逗号串 `--word glue,blue` 的结果**按工具分**：`grammar_check` / `l4_case_check` 把它当成一个词、**照样 EXIT=0**（机审扫不到任何东西，零校验）；`l4_presence_check` 的 `WORD_OK` 校验只放行「单词或空格分隔词组」，逗号串仍直接 **exit 2**；`l4_structure_check` 也把它当一个词，会按「目标词全书」大面积判红（**exit 1**），别拿它当参数验证。
 - 退出码契约：`0` 过、`1` 有违规、`2` 输入或参数错误。**按工具分**：`grammar_check` / `l4_case_check` 读不到文件返回 **1**；它们自身产生 2 只有两种情况——argparse 参数错误，或 `grammar_check` 解析到 0 行旁白（见 §2）；`l4_presence_check` / `l4_structure_check` / `title_intro_check` 读不到文件返回 **2**。**看到 2 不要当 1 修**，先看参数与文件路径。
 
 ## §4 L3 出口门禁 + 结构自检
