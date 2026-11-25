@@ -47,7 +47,9 @@ try:
 except Exception:
     pass
 
-WORD_OK = re.compile(r"^[A-Za-z][A-Za-z'\-]*$")
+# v3.1（2026-11-25 所有者指令）：--word 支持词组（如 "post office" / "toy store"），
+# 作为**一个整体**匹配：词与词之间允许空格/连字符，末词允许复数 s；不匹配单词乱序。
+WORD_OK = re.compile(r"^[A-Za-z][A-Za-z'\-]*(?: [A-Za-z][A-Za-z'\-]*)*$")
 
 
 def parse_pages(text):
@@ -65,6 +67,11 @@ def parse_pages(text):
         m = re.match(r"^生图提示词[:：]\s*(.*)$", s)
         if m:
             cur["prompt"] = m.group(1)
+            continue
+        mv = re.match(r"^入画英文[:：]\s*(.*)$", s)
+        if mv:
+            raw = mv.group(1).replace("[", "").replace("]", "").replace('"', "").replace("'", "").strip()
+            cur["vocab"] = [w.strip() for w in re.split(r"[、,;；]", raw) if w.strip()]
             continue
         m2 = re.match(r"^页面类型[:：]\s*(.*)$", s)
         if m2:
@@ -84,19 +91,28 @@ def scene_segment(prompt):
 
 
 def contains_word(haystack: str, word: str) -> bool:
-    """加词界的大小写不敏感匹配；word 含连字符/撇号时按字面。"""
+    """加词界的大小写不敏感匹配；word 含连字符/撇号时按字面。
+    词组（含空格）作为一个整体：词间允许空白或连字符，末词允许复数 s；
+    单词仍走词形库。"""
+    if " " in word.strip():
+        toks = [t for t in word.split() if t]
+        parts = [re.escape(t) for t in toks]
+        pat = r"(?<![A-Za-z])" + r"[\s\-]+".join(parts) + r"s?(?![A-Za-z])"
+        return re.search(pat, haystack, flags=re.I) is not None
     return re.search(forms_pattern(word), haystack, flags=re.I) is not None
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("l4file")
-    ap.add_argument("--word", action="append", required=True,
+    ap.add_argument("--word", action="append", default=[],
                     help="目标核心词（重复传伙伴词；会套用到所有未指定 page-words 的页）")
     ap.add_argument("--page-words", action="append", default=[],
                     help="按页指定词集，格式 页码=词1,词2（0=封面，1=第一个内页）")
     ap.add_argument("--expect-pages", type=int, default=0,
                     help="期望页数（含封面）；>0 时解析页数不等即判 fail")
+    ap.add_argument("--from-plan", action="store_true",
+                    help="按每页 L4 自己的「入画英文:」声明核对：声明了词/词组而画面没有→EXIT=1；入画英文: [] →按需省略不判错（该模式下 --word 仅作汇总参考，可省略）")
     ap.add_argument("--require-all", action="store_true",
                     help="恢复旧口径：每页必须出现目标词，缺一页 EXIT=1（默认按需模式，缺页只提示）")
     ap.add_argument("--min-pages", type=int, default=0,
@@ -110,7 +126,7 @@ def main():
 
     for w in args.word:
         if not WORD_OK.match(w):
-            print("--word 参数非法：%r（只接受单个英文词；伙伴词请重复传 --word，不要用逗号或空格分隔）" % w)
+            print("--word 参数非法：%r（只接受英文词或空格分隔的词组；伙伴词请重复传 --word，不要用逗号分隔）" % w)
             return 2
 
     page_words = {}
@@ -159,13 +175,18 @@ def main():
             print("--page-words 页码越界：%d（本文件页码范围 0–%d）" % (idx, max_idx))
             return 2
 
-    issues, missing_pages, skipped, used_page_words = [], [], [], []
+    issues, missing_pages, skipped, used_page_words, omitted = [], [], [], [], []
     for i, p in enumerate(pages):
         page_no = "封面" if i == 0 else "P%d" % i
         if "词族拓展页" in (p.get("ptype") or "") and i not in page_words:
             skipped.append(page_no)
             continue
-        if i in page_words:
+        if args.from_plan:
+            words = p.get("vocab") or []
+            if not words:
+                omitted.append(page_no)
+                continue
+        elif i in page_words:
             words = page_words[i]
             used_page_words.append((page_no, words))
         else:
@@ -173,18 +194,26 @@ def main():
         scene = scene_segment(p["prompt"])
         for w in words:
             if not contains_word(scene, w):
-                if args.require_all:
+                if args.require_all or args.from_plan:
                     issues.append("[%s] 场景描述段未出现目标词 '%s'——教学载体丢失"
                                   "（画面上不会有这个词，机审的形态检查也发现不了）" % (page_no, w))
                 else:
                     missing_pages.append((page_no, w))
 
     if not args.quiet:
-        mode = "严格模式（--require-all）" if args.require_all else "按需模式（缺页只提示，不构成错误）"
-        print("解析 %d 页；核对目标词 %s 的「在不在」（%s）" % (len(pages), args.word, mode))
+        if args.from_plan:
+            mode = "声明模式（--from-plan：按每页「入画英文:」核对）"
+        elif args.require_all:
+            mode = "严格模式（--require-all）"
+        else:
+            mode = "按需模式（缺页只提示，不构成错误）"
+        words_shown = args.word if args.word else ["（--from-plan：逐页取声明）"]
+        print("解析 %d 页；核对目标词 %s 的「在不在」（%s）" % (len(pages), words_shown, mode))
         if skipped:
             print("跳过 %d 页（词族拓展页，教学载体是词族词）: %s"
                   "——这些页请用 --page-words \"<页号>=词1,词2\" 核对" % (len(skipped), ", ".join(skipped)))
+        if omitted:
+            print("· 按需省略 %d 页（入画英文: []，不判错）：%s" % (len(omitted), ", ".join(omitted)))
         if used_page_words:
             print("按页指定词集：" + "；".join("%s=%s" % (no, ",".join(ws)) for no, ws in used_page_words))
         if missing_pages:
@@ -202,7 +231,9 @@ def main():
             print("\n[必须修复] 目标词只出现 %d 页，低于 --min-pages %d 的下限" % (present, args.min_pages))
             return 1
     if not args.quiet:
-        if args.require_all:
+        if args.from_plan:
+            print("声明模式核对完成——声明词组的页全都有词，入画英文:[] 的页按需省略")
+        elif args.require_all:
             print("逐页在不在：全过——每页场景段都能看到目标词字面（严格口径）")
         else:
             print("按需模式核对完成")
