@@ -973,9 +973,25 @@ def main() -> int:
         return 1
     if args.note is not None: print("✓ 备注 → 整段覆盖完成（回读一致）")
     if args.gloss: print("✓ 中文释义 → 写入完成（回读一致）")
+
+    # 5) 选定值一致性检查（2026-11-26 判例 B684 旧错配补：标题 4 处 + 简介 2 处
+    #    逐项与本轮选定值对照——属性回填值过期、封面行错版、简介两版并存都在这里拦）
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from notion_consistency_check import check_consistency, fetch_live
+        at, ab, body_txt, rows, l4_txt = fetch_live(page_id)
+        _, c_fails = check_consistency(at, ab, body_txt, rows, l4_txt,
+                                       expect={"title": args.title, "title_cn": args.title_cn, "brief": args.brief})
+        if c_fails:
+            print("✗ 选定值一致性检查未通过（标题4处+简介2处）：")
+            for f, p, w, g in c_fails:
+                print(f"    ✗ [{f}] {p}：期望「{w[:40]}」实际「{g[:40]}」")
+            return 1
+        print("✓ 选定值一致性检查通过（标题4处+简介2处与本轮选定值一致）")
+    except Exception as e:
+        print(f"⚠ 选定值一致性检查取数失败（不阻断，人工复核）: {e}")
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
