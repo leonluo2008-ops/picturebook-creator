@@ -17,9 +17,11 @@
 参考图纪律：**只喂单视角**——横图三视角先用 `scripts/split_single_view.py` 切中份（`refs-single/`），比例尺图不入模型；比例用提示词文字写死。
 图像生成任务须逐次取得所有者授权；台账/Eagle 入库等写入动作同样先报后做。
 
-## 交付（2026-11-23 裁定：成图只存 Eagle）
+## 交付（2026-11-26 更新）
 
-成图验收后：`eagle_export.py` 导出 → Eagle `儿童绘本/<排产号> <word>-成图` 文件夹（命名 0=封面，1..N=内页）→ `notion_archive.py --status 已生图` + `notion_verify.py` 独立回读。
+- **Notion 是创作产物的正式存档、审阅和修订载体**：创作或修改完成后默认按正式流程回写 Notion（归档/`--rewrite` 整本重写+保留原备注追加摘要+独立回读）；用户当次要求仅预览/暂缓时按当次执行。收尾在对话框给 Notion 链接+改动摘要+验证结果。细则：`references/notion-ops.md`（§2/§3/§6/§8），口径记录 `docs/项目适配包.md` §1.5。
+- **本地产物生命周期**：`projects/<排产号>/` 是可弃工作副本（Notion 才是存档）；回读一致且后续步骤无需即清理，批量对账后清理已完成项——细则 `references/notion-ops.md` §8。
+- 成图验收后：`eagle_export.py` 导出 → Eagle `儿童绘本/<排产号> <word>-成图` 文件夹（命名 0=封面，1..N=内页）→ `notion_archive.py --status 已生图` + `notion_verify.py` 独立回读。
 **不走 ZIP 打包、不上传 Notion「交付文件」**（`deliver_book.py` 已废弃，勿用）。用户当次暂停或仅预览要求优先。
 
 ## 云端与跨设备入口
