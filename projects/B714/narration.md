@@ -1,7 +1,7 @@
 | 页码 | 英文 | 中文 | 领读 |
 |------|------|------|------|
 | 封面 | Keyboard | 键盘，Keyboard | 可带读 Keyboard |
-| P1 | Look at the keyboard. It has so many keys! | 快看，这个大键盘，keyboard！上面有好多好多按键。 | 可带读 keyboard |
+| P1 | Look at the keyboard. It has so many keys! | 快看，这个大键盘，上面有好多好多按键，keyboard！ | 可带读 keyboard |
 | P2 | I miss Grandma far away. | 好想好想远方的奶奶呀。 | — |
 | P3 | I type my hug on the keyboard. | 我在大键盘上，给奶奶敲出拥抱，keyboard！ | 可带读 keyboard |
 | P4 | Look! My hug is on the screen. | 看！屏幕上跳出一颗大大的爱心。 | — |
