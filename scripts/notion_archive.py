@@ -717,6 +717,8 @@ def main() -> int:
                     help="显式放行标题缺失（存量重整个别书正文源就没有标题时用；输出会带 WARN 行）")
     ap.add_argument("--allow-no-brief", action="store_true",
                     help="显式放行简介缺失（同上；默认缺标题或简介一律 EXIT=2 拒归档）")
+    ap.add_argument("--allow-no-gloss", action="store_true",
+                    help="显式放行释义缺失（存量个别书确实无已确认释义时用；跳过认读释义硬闸并打印 WARN）")
     ap.add_argument("--patch", action="store_true",
                     help="轻量补档：正文缺标题/简介段时插入到「创作产出」heading 后 + 属性回填 + 回读（不重写全本；需 --title/--title-cn/--brief）")
     ap.add_argument("--locate", action="store_true", help="只定位台账行并打印，不写")
@@ -759,6 +761,31 @@ def main() -> int:
             )
         if args.title and re.search(r"[\u4e00-\u9fff]", args.title):
             raise SystemExit(f"✗ --title 疑似粘连（含中文）：{args.title!r}\n  英文标题只放英文，中文走 --title-cn。")
+    # 认读释义归档前硬校验（2026-11-26 所有者裁定，rules.md §六）：完整归档必须传 --gloss
+    # （本书已确认中文释义）；传了则在本地对旁白表重跑第 1 道门禁（含 --gloss 硬闸），
+    # 门禁不过 = 拒绝归档。--allow-no-gloss 只给存量补档显式放行。
+    if (args.narration and args.l4) and not args.patch:
+        if not (args.gloss and args.gloss.strip()):
+            if not args.allow_no_gloss:
+                raise SystemExit(
+                    "✗ 归档缺少 --gloss（本书已确认中文释义，认读处中文释义硬闸的判据输入，rules.md §六）。\n"
+                    "  从已确认材料（台账「中文释义」列 / L1 需求确认表）取得后传入；\n"
+                    "  只有存量个别书确实无释义时才可用 --allow-no-gloss 显式放行。"
+                )
+            print("  ⚠ --allow-no-gloss：未传释义，跳过「认读处中文释义」硬闸（存量放行）")
+        else:
+            import subprocess
+            here = Path(__file__).resolve().parent.parent
+            gate = subprocess.run(
+                [sys.executable, str(here / "tools" / "grammar_check.py"),
+                 str(Path(args.narration).resolve()),
+                 "--word", args.word or "", "--gloss", args.gloss],
+                capture_output=True, text=True, encoding="utf-8")
+            if gate.returncode != 0:
+                raise SystemExit(
+                    "✗ 认读释义门禁未过（rules.md §六），拒绝归档：\n"
+                    + (gate.stdout or "") + (gate.stderr or ""))
+            print(f"  ✓ 认读释义门禁通过（--gloss {args.gloss}，归档前硬校验）")
     if args.status or props_only:
         opts = status_options(resolve_data_source())
         if args.status and args.status not in opts:
