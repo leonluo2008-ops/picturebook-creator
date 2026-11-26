@@ -24,3 +24,6 @@ __pycache__/
 .env.*
 !.env.example
 .venv/
+
+# 临时验证产物/夹具工作目录（不入库，见 references/notion-ops.md §8）
+scratch/
