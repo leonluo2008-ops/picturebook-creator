@@ -7,7 +7,7 @@
 
 | # | 命令 | 查什么 | 退出码 |
 |---|---|---|---|
-| 1 | `tools/grammar_check.py` | 旁白表：中英大小写、标点、**目标词双语同现** | 0 过 / 1 违规（**读不到文件也是 1**）/ 2 解析到 0 行或参数错 |
+| 1 | `tools/grammar_check.py` | 旁白表：中英大小写、标点、**目标词双语同现**、**句尾落点**、**认读处中文释义**（传 `--gloss` 时） | 0 过 / 1 违规（**读不到文件也是 1**）/ 2 解析到 0 行或参数错 |
 | 2 | `tools/l4_case_check.py` | L4 画面词形态 + 旁白行双语 | 0 过 / 1 违规（**读不到文件、解析到 0 页也是 1**）/ 2 仅 argparse 参数错 |
 | 3 | `scripts/l4_presence_check.py` | L4：逐页**在不在**。**正式口径 `--from-plan`（2026-11-25）**：逐页取 L4「入画英文:」声明核对，声明词/词组不在场景段→EXIT=1，`入画英文: []`→按需省略；`--word` 支持词组整体匹配。旧口径：按需模式（缺页只提示）/ `--require-all` / `--min-pages` | 0 过 / 1 违规（`--from-plan` 声明缺词、`--require-all` 或 `--min-pages` 触发）/ 2 参数错（**读不到文件也是 2**）|
 | 自检 A | `scripts/l4_structure_check.py` | L4 结构：块存在性、词数、构图三要素、比例、页型、`Pn` 前缀、内页数、目标词次数、中文句长 | 0 / 1 / 2（读不到文件、第 0 页不是封面 → 2）|
@@ -18,7 +18,7 @@
 ### 第 1 道：旁白表
 
 ```bash
-python tools/grammar_check.py <旁白表文件.md> --word <核心词>
+python tools/grammar_check.py <旁白表文件.md> --word <核心词> --gloss <释义>
 python tools/grammar_check.py <旁白表文件.md> --word glue --word blue   # 词族伙伴词重复传
 python tools/grammar_check.py <旁白表文件.md> --word <核心词> --family-page P7  # 词族页换页号时
 ```
@@ -83,6 +83,7 @@ python scripts/l4_presence_check.py <L4文件.txt> --word pot --expect-pages 9 -
 | `--require-all-pages` | **只属自检 `l4_structure_check.py`** | 恢复旧判据：每页提示词都必须出现目标词（给 2026-11-23 前旧书复核用）；默认判据跟随每页 `入画英文`——空数组页不校验 |
 | `--family-words` | **只属 structure** | 逗号分隔，如 `--family-words hot,dot,cot` |
 | `--family-page` | 只属 grammar_check | 词族页页号，默认 `P7` |
+| `--gloss` | 只属 grammar_check | 本书已确认中文释义（台账「中文释义」）；**正式收稿必传**——传入即启用「认读处中文释义」硬闸（中文格含核心词须同格含释义，纯指代即红）；不传打印跳过提示（rules.md §六） |
 | `--max-words` | 只属 structure | 默认 10；只允许 ≤10，超出会被 clamp 并告警 |
 
 - **伙伴词只能重复写 `--word`**：写成空格分隔报 `unrecognized arguments`。写成逗号串 `--word glue,blue` 的结果**按工具分**：`grammar_check` / `l4_case_check` 把它当成一个词、**照样 EXIT=0**（机审扫不到任何东西，零校验）；`l4_presence_check` 的 `WORD_OK` 校验只放行「单词或空格分隔词组」，逗号串仍直接 **exit 2**；`l4_structure_check` 也把它当一个词，会按「目标词全书」大面积判红（**exit 1**），别拿它当参数验证。

@@ -12,8 +12,14 @@
    必须放在所在句的句尾或作独立句末认读语；核心词后同句仍接中文句意即违规。
    直接扫中文列实际用词——英文列没出现核心词的页同样要查。封面行与词族拓展页豁免
    （封面按标题规范；词族页中文列是「拓展词+释义」串，另有自己的规则）。
+5. 认读处中文释义（2026-11-26 所有者裁定，rules.md §六）：传入 --gloss 时，中文内页旁白
+   凡用英文核心词承担认读，该格中文必须说出本书已确认的中文释义（逐字）——
+   纯指代（「快看，keyboard！」）替代释义 = 孩子不念英文字就不知道指的是什么。
+   机检只查可确定的部分（同格含释义）；「紧接的中文认读语境算不算听懂」属自然度，
+   留给收稿复核（flow.md §4）人工裁决。封面行与词族拓展页豁免。
+   未传 --gloss 时跳过本项并打印提示——正式收稿应传入台账「中文释义」。
 
-用法: python3 grammar_check.py <旁白表.txt> --word floor [--word door]
+用法: python3 grammar_check.py <旁白表.txt> --word floor [--word door] [--gloss 地板]
 输入格式: | 页码 | 英文 | 中文 |
 退出码: 0=全过  1=有违规或读不到文件  2=参数错误 / 解析到 0 行旁白
 """
@@ -61,7 +67,7 @@ def _is_wordlist(en):
     return len(tokens) >= 2 and all(re.fullmatch(r'[A-Za-z][A-Za-z\-]*', x) for x in tokens if x)
 
 
-def check_rows(rows, words):
+def check_rows(rows, words, glosses=None):
     issues, warns = [], []
     for page, en, cn in rows:
         is_cover = (page == '封面')
@@ -131,6 +137,19 @@ def check_rows(rows, words):
                             f"[{page}] 中文列核心词'{w}'后同句仍接中文句意——完整核心词"
                             f"必须放句尾或作独立句末认读语(rules.md §六): '…{cn[max(0, m.start()-6):m.end()+8]}…'")
 
+        # --- 认读处中文释义检查(硬闸, 2026-11-26 所有者裁定, rules.md §六) ---
+        # 中文内页旁白用英文核心词承担认读时, 该格中文必须说出本书已确认的中文释义——
+        # 纯指代(「快看,keyboard!」「就是这个」)替代释义 = 不念英文字就不知道指的是什么。
+        # 机检只做可确定的部分: 同一格必须含释义逐字; 邻句/图文语境是否算「听懂」
+        # 属自然度判断, 留给收稿复核(flow.md §4)人工裁决。
+        # 封面行豁免(按标题规范); 词族页豁免(拓展词逐一配释义, 另有规则)。
+        if glosses and not is_cover and not (page == FAMILY_PAGE and _is_wordlist(en)):
+            for w in words:
+                if re.search(forms_pattern(w), cn.lower()) and not any(g in cn for g in glosses):
+                    issues.append(
+                        f"[{page}] 中文列核心词'{w}'认读处缺已确认中文释义({'/'.join(glosses)})"
+                        f"——纯指代不能替代释义, 这句须说出释义(rules.md §六): '{cn}'")
+
         # --- 标点对应 ---
         # 封面行是标题: GB/T 15834-2011 B.4 标题末尾通常不用标点(豁免)。
         # 正文行也只做软提醒不当硬闸: 中英文句界不一一对应是常态
@@ -160,6 +179,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('narration_file', help='旁白表文件(markdown 表)')
     ap.add_argument('--word', action='append', required=True, help='目标核心词,可重复传入词族伙伴词')
+    ap.add_argument('--gloss', action='append',
+                    help='本书已确认中文释义(台账「中文释义」列,如 键盘);传入即启用「认读处中文释义」硬闸')
     ap.add_argument('--family-page', default='P7', help='词族拓展页的页号(默认 P7；内页更多时按实际传)')
     args = ap.parse_args()
     global FAMILY_PAGE
@@ -173,11 +194,15 @@ def main():
 
     rows = parse(text)
     print(f"解析 {len(rows)} 行旁白, 核对目标词 {args.word}")
+    if args.gloss:
+        print(f"启用认读处中文释义检查: 释义={args.gloss}")
+    else:
+        print("未传 --gloss：跳过「认读处中文释义」检查（正式收稿应传入台账中文释义, rules.md §六）")
     if not rows:
         print("没解析到任何旁白行（检查是否为 `| 页码 | 英文 | 中文 |` 的 markdown 表格）——"
               "此时没有任何校验，不能报通过")
         sys.exit(2)
-    issues, warns = check_rows(rows, args.word)
+    issues, warns = check_rows(rows, args.word, glosses=args.gloss)
     if issues:
         print("\n[必须修复]")
         for i in issues:
