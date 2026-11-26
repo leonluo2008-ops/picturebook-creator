@@ -1,7 +1,7 @@
 ---
 name: picturebook-creator
 description: 儿童领读绘本创作：把模糊想法变成可直接交给即梦的整本生图提示词，并归档到 Notion 排产台账。触发词：绘本创作、画绘本、儿童绘本、picturebook、领读绘本、单词绘本、phonics绘本、自然拼读绘本、认字绘本、生图提示词、整理提示词、绘本台账、检查台账、存入台账。
-version: 14.2.0
+version: 14.3.0
 ---
 
 # picturebook-creator
